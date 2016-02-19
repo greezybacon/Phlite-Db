@@ -24,11 +24,11 @@ extends Operation {
         $this->options = $options;
     }
 
-    function verify($manager, $direction=Migration::FORWARDS) {
+    function verify($router, $direction=Migration::FORWARDS) {
         # Check if table exists
+        $bk = $router($this->modelClass);
         $class = $this->modelClass;
         $table = $class::getMeta('table');
-        $bk = $manager->getConnection($class, Router::MIGRATE);
         $columns = $bk->getCompiler()->inspectTable($table);
         $exists = count($columns) > 0;
 
@@ -44,21 +44,24 @@ extends Operation {
         else return $exists;
     }
 
-    function apply($manager) {
+    function apply($router) {
+        $bk = $router($this->modelClass);
         $class = $this->modelClass;
         $table = $class::getMeta('table');
-        $connection = $manager->getConnection($class, Router::MIGRATE);
-        $compiler = $connection->getCompiler();
-        $statement = $compiler->compileCreate($meta, $fields, $options);
-        $connection->execute($statement);
+        $compiler = $bk->getCompiler();
+        $statement = $compiler->compileCreate($class, $this->fields, $this->options);
+        $bk->execute($statement);
+
+        $meta = $class::getMeta();
+        unset($meta['fields']);
     }
 
-    function revert($manager) {
+    function revert($router) {
+        $bk = $router($this->modelClass);
         $class = $this->modelClass;
         $table = $class::getMeta('table');
-        $connection = $manager->getConnection($class, Router::MIGRATE);
-        $compiler = $connection->getCompiler();
-        $statement = $compiler->compileDrop($meta);
-        $connection->execute($statement);
+        $compiler = $bk->getCompiler();
+        $statement = $compiler->compileDrop($class);
+        $bk->execute($statement);
     }
 }

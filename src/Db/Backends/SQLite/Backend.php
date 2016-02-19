@@ -1,7 +1,8 @@
 <?php
-namespace Phlite\Db\Backends\MySQL;
+namespace Phlite\Db\Backends\SQLite;
 
 use Phlite\Db;
+use Phlite\Util;
 
 class Backend extends Db\Backend {
     static $defaults = [
@@ -15,11 +16,11 @@ class Backend extends Db\Backend {
     protected $driver;
 
     function __construct(array $info) {
-        $this->info = new Util\ArrayObject($info);
+        $this->info = $info; # new Util\ArrayObject($info);
         $this->compiler = @$info['OPTIONS']['COMPILER']
           ?: static::$defaults['COMPILER'];
         $this->driver = @$info['OPTIONS']['DRIVER']
-          ?: static::$defaults['DRIVER']
+          ?: static::$defaults['DRIVER'];
     }
 
     function getCompiler($options=false) {
@@ -42,8 +43,8 @@ class Backend extends Db\Backend {
             // No auto reconnect, use ::disconnect() first
             return;
 
-        $db = $this->info->get('FILE', ':memory:');
-        $options = new Util\ArrayObject($this->info->get('OPTIONS', array());
+        $db = $this->info['FILE'] ?: ':memory:'; #$this->info->get('FILE', ':memory:');
+        #$options = new Util\ArrayObject($this->info->get('OPTIONS', array()));
 
         // Assertions
         if ($db !== ':memory:') {
@@ -52,12 +53,12 @@ class Backend extends Db\Backend {
                 throw new InvalidArgumentException('Database path does not exist');
         }
 
-        if (!($this->cnxn = new SQLite3($db)))
+        if (!($this->cnxn = new \SQLite3($db)))
             throw new \Exception('SQLite3 extension is missing on this system');
 
         // TODO: Handle encryption key, read-only and such
 
-        $this->charset = $options->get('CHARSET', 'utf8');
+        $this->charset = 'utf8'; #$options->get('CHARSET', 'utf8');
 
         // TODO: Perhaps create PHP function for collation to enforce the
         //       charset setting

@@ -1,0 +1,13 @@
+
+# Ignore packaged things
+*.phar
+composer.lock
+
+# Ignore stuff added by various editors
+nbproject/
+*.sw[a-z]
+
+# Ingore OS added overhead
+._.DS_Store
+.DS_Store
+.vagrant

@@ -1,27 +1,38 @@
 <?php
-
 namespace Phlite\Db\Fields;
 
+use Phlite\Db\Backend;
+
 abstract class BaseField {
-    static $defaults = array();
+    static $defaults = array(
+        'nullable' => true,
+        'default' => null,
+    );
     var $options;
 
-    function __construct(array $options) {
+    function __construct(array $options=array()) {
         // Keep the defaults specified by the field type
-        $this->options = $options + static::$defaults;
+        $this->options = $options + static::getDefaults();
+    }
+
+    static function getDefaults() {
+        if ($parent = get_parent_class(get_called_class()))
+            return static::$defaults + $parent::getDefaults();
+
+        return static::$defaults;
     }
 
     /**
      * Convert a value from this field to a database value
      */
-    function to_database($value, $compiler=false) {
+    function to_database($value, Backend $backend) {
         return $value;
     }
 
     /**
      * Convert a value from the database to a PHP value.
      */
-    function to_php($value, $connection) {
+    function to_php($value, Backend $backend) {
         return $value;
     }
 

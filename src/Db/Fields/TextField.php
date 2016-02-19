@@ -2,31 +2,37 @@
 
 namespace Phlite\Db\Fields;
 
-use Phlite\Db\Connection;
+use Phlite\Db\Backend;
 use Phlite\Text;
 
 class TextField
 extends BaseField {
-    function to_php($value, Connection $connection) {
-        if ($this->charset && $this->charset != $connection->charset) {
-            return new Text\Unicode($value, $connection->charset);
+    function __construct(array $options=array()) {
+        parent::__construct($options);
+        if (!isset($this->length))
+            throw new InvalidArgumentException('`length` is required for text fields');
+    }
+
+    function to_php($value, Backend $backend) {
+        if ($this->charset && $this->charset != $backend->charset) {
+            return new Text\Unicode($value, $backend->charset);
         }
         return $value;
     }
 
-    function to_database($value, Connection $connection) {
+    function to_database($value, Backend $backend) {
         if ($value instanceof Text\Unicode) {
-            return $value->get($connection->charset)
+            return $value->get($backend->charset);
         }
     }
 
-    function getCreateSql($compiler) {
-        $typename = $compiler->getTypeName($this);
-        return sprintf('%s VARCHAR(%s) %s%s%s%s',
-            $compiler->quote($this->name),
-            $this->max_length,
-            ($this->charset) ? ' CHARSET ' . $this->charset : '',
-            ($this->collation) ? ' COLLATION ' . $this->collation : '',
+    function getCreateSql($name, $compiler) {
+        return sprintf('%s %s(%s) %s%s%s%s',
+            $compiler->quote($name),
+            $compiler->getTypeName($this),
+            $this->length,
+            isset($this->charset) ? ' CHARSET ' . $this->charset : '',
+            isset($this->collation) ? ' COLLATION ' . $this->collation : '',
             ($this->nullable ? 'NOT ' : '') . 'NULL',
             ($this->default) ? ' DEFAULT ' . $compiler->escape($this->default) : ''
         );

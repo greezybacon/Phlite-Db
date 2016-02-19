@@ -38,7 +38,7 @@ class ModelMeta implements \ArrayAccess {
 
         }
         else {
-            $meta = $model::$meta + self::$base;
+            $meta = $model::$meta + self::$defaults;
         }
 
         if (!$meta['view']) {
@@ -71,7 +71,7 @@ class ModelMeta implements \ArrayAccess {
     function extend($meta) {
         if ($meta instanceof self)
             $meta = $meta->base;
-        return $meta + $this->base + self::$base;
+        return $meta + $this->base + self::$defaults;
     }
 
     /**

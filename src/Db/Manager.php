@@ -6,7 +6,7 @@ use Phlite\Project;
 
 class Manager {
     protected $routers = array();
-    protected $connections = array();
+    protected $backends = array();
 
     const READ    = 1;
     const WRITE   = 2;
@@ -21,14 +21,14 @@ class Manager {
         return $manager;
     }
 
-    protected function addConnection(array $info, $key) {
+    protected function addConnection(array $info, $key='default') {
         if (!isset($info['BACKEND']))
             throw new \Exception("'BACKEND' must be set in the database options.");
         $backendClass = $info['BACKEND'] . '\Backend';
         if (!class_exists($backendClass))
             throw new \Exception($backendClass
                 . ': Specified database backend does not exist');
-        $this->connections[$key] = new $backendClass($info);
+        $this->backends[$key] = new $backendClass($info);
     }
 
     /**
@@ -49,7 +49,7 @@ class Manager {
     }
 
     /**
-     * getConnection
+     * getBackend
      *
      * Fetch a connection object for a particular model and for a particular
      * reason. The reason code is selected from the constants defined in the
@@ -60,23 +60,23 @@ class Manager {
      * Optionally, the $key passed to ::addConnection() can be returned and
      * this Manager will lookup the Connection automatically.
      */
-    protected function getConnection($model, $reason=Router::READ) {
+    protected function getBackend($model, $reason=Router::READ) {
         if ($model instanceof Model\ModelBase)
             $model = get_class($model);
         foreach ($this->routers as $R) {
-            if ($C = $R->getConnectionForModel($model, $reason)) {
+            if ($C = $R->getBackendForModel($model, $reason)) {
                 if (is_string($C)) {
-                    if (!isset($this->connections[$C]) && !$this->tryAddConnection($C))
+                    if (!isset($this->backends[$C]) && !$this->tryAddConnection($C))
                         throw new \Exception($backend
                             . ': Backend returned from routers does not exist.');
-                    $C = $this->connections[$C];
+                    $C = $this->backends[$C];
                 }
                 return $C;
             }
         }
-        if (!isset($this->connections['default']) && !$this->tryAddConnection('default'))
+        if (!isset($this->backends['default']) && !$this->tryAddConnection('default'))
             throw new \Exception("'default' database not specified");
-        return $this->connections['default'];
+        return $this->backends['default'];
     }
 
     protected function addRouter(Router $router) {
@@ -84,7 +84,7 @@ class Manager {
     }
 
     protected function getCompiler(Model\ModelBase $model) {
-        return $this->getConnection($model)->getCompiler();
+        return $this->getBackend($model)->getCompiler();
     }
 
     /**
@@ -100,9 +100,9 @@ class Manager {
      */
     protected static function delete(Model\ModelBase $model) {
         Model\ModelInstanceManager::uncache($model);
-        $connection = static::getManager()->getConnection($model, Router::WRITE);
-        $stmt = $connection->getCompiler()->compileDelete($model);
-        return $connection->getDriver($stmt);
+        $backend = static::getManager()->getBackend($model, Router::WRITE);
+        $stmt = $backend->getCompiler()->compileDelete($model);
+        return $backend->getDriver($stmt);
     }
 
     /**
@@ -118,28 +118,33 @@ class Manager {
      * count of affected rows by the update (should be 1).
      */
     static function save(Model\ModelBase $model) {
-        $connection = static::getManager()->getConnection($model, Router::WRITE);
-        $compiler = $connection->getCompiler();
+        $backend = static::getManager()->getBackend($model, Router::WRITE);
+        $compiler = $backend->getCompiler();
         if ($model->__new__)
             $stmt = $compiler->compileInsert($model);
         else
             $stmt = $compiler->compileUpdate($model);
 
-        return $connection->getDriver($stmt);
+        return $backend->getDriver($stmt);
     }
 
     /**
      * Create a table for a new model. If the table already exists, then the
      * table should be
      */
-    static function migrate($migration, $direction=Migrations\Migration::FORWARDS) {
+    static function migrate(Migrations\Migration $migration,
+        $direction=Migrations\Migration::FORWARDS
+    ) {
         $manager = static::getManager();
-        if (!$migration->verify($manager, $direction))
+        $router = function($class) use ($manager) {
+            return $manager->getBackend($class, Router::MIGRATE);
+        };
+        if (!$migration->verify($router, $direction))
             return false;
         if ($direction == Migrations\Migration::FORWARDS)
-            return $migration->apply();
+            return $migration->apply($router);
         else
-            return $migration->revert();
+            return $migration->revert($router);
     }
 
     // Allow "static" access to instance methods of the Manager singleton. All

@@ -2,10 +2,9 @@
 namespace Phlite\Db\Migrations;
 
 use Phlite\Db\Exception;
+use Phlite\Db\Model;
 
 abstract class Migration {
-    static $operations = array();
-
     const FORWARDS  = 1;
     const BACKWARDS = 2;
 
@@ -14,17 +13,30 @@ abstract class Migration {
      * the passed $backend callable to fetch the backend for each model to be
      * migrated in this migration.
      */
-    function verify($backend, $direction=self::FORWARDS) {
+    function verify($router, $direction=self::FORWARDS) {
         return true;
     }
 
-    abstract function apply($backend);
+    function apply($router) {
+        foreach ($this->getOperations() as $oper) {
+            $oper->apply($router);
+        }
+        // Dump the model structure cache
+    }
 
     /**
      * From the current state of the database, apply this migration in reverse.
      * That is, undo what would be done by the ::apply() method.
      */
-    function revert($backend) {
-        throw new Exception\OrmError('Reverting not implemented');
+    function revert($router) {
+        foreach (array_reverse($this->getOperations()) as $oper) {
+            $oper->revert($router);
+        }
+        // Dump the model structure cache
     }
+
+    /**
+     * Fetch operations defined in this migration
+     */
+    abstract function getOperations();
 }

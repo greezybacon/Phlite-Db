@@ -1,6 +1,6 @@
 {
-    "name": "phlite/phlite",
-    "description": "Ultra lightweight PHP web application framework",
+    "name": "phlite/phlite-db",
+    "description": "ORM framework for Phlite, the ultra lightweight PHP web application framework",
     "version": "0.0.1",
     "license": "MIT",
 
@@ -12,27 +12,11 @@
         }
     ],
 
-    "repositories": [
-        {
-            "type": "package",
-            "package": {
-                "name": "phppass/phppass",
-                "version": "0.3",
-                "dist": {
-                    "type": "tar.gz",
-                    "url": "http://www.openwall.com/phpass/phpass-0.3.tar.gz"
-                }
-            }
-       }
-   ],
-
     "require": {
-        "php": ">= 5.4.0",
-        "psr/http-message": "<1.1",
-        "twig/twig": ">= 1.16, < 2.0",
-        "phpunit/phpunit": "<4.7",
-        "react/http": "*"
+        "php": ">= 5.6.0",
+        "phpunit/phpunit": "< 5.3"
     },
+
     "autoload": {
         "classmap": ["src/"],
         "psr-4": {"Phlite\\": "src/"}

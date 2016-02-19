@@ -564,11 +564,11 @@ class Compiler extends SqlCompiler {
           foreach ($constraints as $C) {
               $extras[] = $C->getCreateSql($this);
           }
-          return sprintf('CREATE TABLE %s (%s%s)',
+          return new Statement(sprintf('CREATE TABLE %s (%s%s)',
               $this->quote($meta['table']),
               implode(', ', $columns),
               $extras ? (', ' . implode(', ', $extras)) : ''
-          )
+          ));
     }
 
     function compileDrop($modelClass) {

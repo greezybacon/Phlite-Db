@@ -24,4 +24,13 @@ extends Db\Backends\MySQL\Compiler {
 
         return $cacheable ? ($cache[$table] = $columns) : $columns;
     }
+
+    function getTypeName($field) {
+        switch (true) {
+        case $field instanceof Db\Fields\TextField:
+            return 'TEXT';
+        case $field instanceof Db\Fields\IntegerField:
+            return 'INT';
+        }
+    }
 }

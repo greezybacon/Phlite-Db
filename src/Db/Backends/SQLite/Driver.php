@@ -129,6 +129,8 @@ implements SqlDriver {
 
         $count = $this->cursor->numColumns();
         for ($i = 0; $i < $count; $i++)
-            $cols[] = $this->cursor->columnName($i)
+            $cols[] = $this->cursor->columnName($i);
+
+        return $cols;
     }
 }
