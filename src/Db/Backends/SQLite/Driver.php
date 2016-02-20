@@ -43,8 +43,8 @@ implements SqlDriver {
 
         // TODO: Implement option to drop parameters
 
-        if ($this->stmt->hasParmeters())
-            $this->_bind($params, $this->dbstmt);
+        if ($this->stmt->hasParameters())
+            $this->bind($this->dbstmt);
         if (!($this->cursor = $this->dbstmt->execute())) {
             throw new Exception\DbError('Unable to execute query: '
                 . $this->conn->lastErrorMsg());
@@ -53,7 +53,8 @@ implements SqlDriver {
         return true;
     }
 
-    function _bind($params, $res) {
+    protected function bind($res) {
+        $params = $this->stmt->getParameters();
         if (count($params) != $res->paramCount())
             throw new Exception\OrmError('Parameter count does not match query');
 
@@ -93,14 +94,14 @@ implements SqlDriver {
         if (!isset($this->cursor))
             $this->execute();
 
-        return $this->cursor->fetchArray(\SQLITE3_NUM) ?: false;
+        return $this->cursor->fetchArray(\SQLITE3_ASSOC) ?: false;
     }
 
     function fetchRow() {
       if (!isset($this->cursor))
           $this->execute();
 
-      return $this->cursor->fetchArray(\SQLITE3_ASSOC) ?: false;
+      return $this->cursor->fetchArray(\SQLITE3_NUM) ?: false;
     }
 
     function close() {
@@ -111,7 +112,7 @@ implements SqlDriver {
         $this->dbstmt = null;
 
         if ($this->cursor)
-            $this->cusor->finalize();
+            @$this->cursor->finalize();
     }
 
     function affected_rows() {

@@ -35,7 +35,7 @@ class Backend extends Db\Backend {
 
     function getConnection() {
         $this->connect();
-        return $this->conn;
+        return $this->cnxn;
     }
 
     function connect() {

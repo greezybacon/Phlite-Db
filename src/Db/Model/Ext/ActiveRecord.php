@@ -4,6 +4,7 @@ namespace Phlite\Db\Model\Ext;
 use Phlite\Db\Exception;
 use Phlite\Db\Manager;
 use Phlite\Db\Model;
+use Phlite\Signal;
 
 trait ActiveRecord {
     var $__deleted__ = false;
@@ -97,7 +98,7 @@ trait ActiveRecord {
 
         if ($wasnew) {
             // XXX: Ensure AUTO_INCREMENT is set for the field
-            if (count($pk) == 1 && !$refetch) {
+            if (count($pk) === 1 && !$refetch) {
                 $key = $pk[0];
                 $id = $ex->insert_id();
                 if (!isset($this->{$key}) && $id)
@@ -138,7 +139,6 @@ trait ActiveRecord {
                     }
                 }
             }
-            $this->__onsave();
         }
         $this->__dirty__ = array();
         return true;

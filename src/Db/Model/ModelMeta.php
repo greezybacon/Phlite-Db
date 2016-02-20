@@ -186,9 +186,14 @@ class ModelMeta implements \ArrayAccess {
         }
     }
 
+    function reset() {
+        // Force reload of lazy items
+        unset($this->base['fields']);
+    }
+
     function inspectFields() {
-        $connection = Manager::getConnection($this);
-        $compiler = $connection->getCompiler();
+        $backend = Manager::getBackend($this);
+        $compiler = $backend->getCompiler();
         return $compiler->inspectTable($this['table']);
         // TODO: Support caching the fields
     }

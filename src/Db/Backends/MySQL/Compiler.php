@@ -444,7 +444,7 @@ class Compiler extends SqlCompiler {
         return ' SET '.implode(', ', $fields);
     }
 
-    function compileUpdate(ModelBase $model) {
+    function compileUpdate(ModelBase $model, $limit1=true) {
         $pk = $model::getMeta('pk');
         $sql = 'UPDATE '.$this->quote($model::getMeta('table'));
         $sql .= $this->__compileUpdateSet($model, $pk);
@@ -454,7 +454,8 @@ class Compiler extends SqlCompiler {
             $criteria[$f] = @$model->__dirty__[$f] ?: $model->get($f);
         }
         $sql .= ' WHERE '.$this->compileQ(new Util\Q($criteria), $model);
-        $sql .= ' LIMIT 1';
+        if ($limit1)
+            $sql .= ' LIMIT 1';
 
         return new Statement($sql, $this->params);
     }
@@ -467,12 +468,14 @@ class Compiler extends SqlCompiler {
         return new Statement($sql, $this->params);
     }
 
-    function compileDelete(ModelBase $model) {
+    function compileDelete(ModelBase $model, $limit1=true) {
         $table = $model::getMeta('table');
 
         $where = ' WHERE '.implode(' AND ',
             $this->compileConstraints(array(new Util\Q($model->pk)), $model));
-        $sql = 'DELETE FROM '.$this->quote($table).$where.' LIMIT 1';
+        $sql = 'DELETE FROM '.$this->quote($table).$where;
+        if ($limit1)
+            $sql .= ' LIMIT 1';
         return new Statement($sql, $this->params);
     }
 
@@ -561,6 +564,9 @@ class Compiler extends SqlCompiler {
               $columns[] = $F->getCreateSql($name, $this);
               $extras = array_merge($extras, $F->getConstraints($name));
           }
+          foreach ($this->getExtraCreateConstraints($modelClass, $fields) as $C)
+              $constraints[] = $C;
+          // TODO: Add ForeignKey constraints
           foreach ($constraints as $C) {
               $extras[] = $C->getCreateSql($this);
           }
@@ -569,6 +575,10 @@ class Compiler extends SqlCompiler {
               implode(', ', $columns),
               $extras ? (', ' . implode(', ', $extras)) : ''
           ));
+    }
+
+    function getExtraCreateConstraints($modelClass, $fields) {
+        return [new Fields\PrimaryKey($modelClass::getMeta('pk'))];
     }
 
     function compileDrop($modelClass) {

@@ -40,7 +40,7 @@ extends Operation {
             }
             return true;
         }
-        // Otherwise, the table must exists to need dropping
+        // Otherwise, the table must exist to need dropping
         else return $exists;
     }
 
@@ -52,8 +52,7 @@ extends Operation {
         $statement = $compiler->compileCreate($class, $this->fields, $this->options);
         $bk->execute($statement);
 
-        $meta = $class::getMeta();
-        unset($meta['fields']);
+        $class::getMeta()->reset();
     }
 
     function revert($router) {

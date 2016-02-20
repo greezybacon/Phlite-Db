@@ -28,10 +28,10 @@ class Statement {
     }
 
     function hasParameters() {
-        return count($this->params);
+        return $this->params;
     }
     function getParameters() {
-        return $this->params;
+        return $this->params ?: array();
     }
 
     function log($context=array()) {
@@ -48,8 +48,8 @@ class Statement {
 
         $params = $this->params;
         return preg_replace_callback("/:(\d+)/",
-        function($m) use ($self) {
-            $p = $self->params[$m[1]-1];
+        function($m) {
+            $p = $this->params[$m[1]-1];
             return $escape_cb($p);
         }, $this->sql);
     }

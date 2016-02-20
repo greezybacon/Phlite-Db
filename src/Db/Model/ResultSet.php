@@ -3,10 +3,10 @@
 namespace Phlite\Db\Model;
 
 use Phlite\Db\Manager;
+use Phlite\Util;
 
 abstract class ResultSet
-extends Util\CachingIterator
-implements \Countable {
+extends Util\CachingIterator {
     var $resource;
     var $stmt;
     var $queryset;
@@ -19,6 +19,7 @@ implements \Countable {
     }
 
     function asArray() {
+        $this->rewind();
         $this->fillTo(PHP_INT_MAX);
         return $this->getCache();
     }
@@ -26,15 +27,11 @@ implements \Countable {
     // Iterator interface
     function rewind() {
         if (!isset($this->resource) && $this->queryset) {
-            $connection = Manager::getConnection($this->queryset->model);
-            $this->resource = $connection->getDriver($this->stmt);
+            $backend = Manager::getBackend($this->queryset->model);
+            $this->resource = $backend->getDriver($this->stmt);
+            $this->resource->execute();
         }
         parent::rewind();
-    }
-
-    // Countable interface
-    function count() {
-        return count($this->asArray());
     }
 
     /**

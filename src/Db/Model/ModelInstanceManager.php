@@ -3,6 +3,7 @@
 namespace Phlite\Db\Model;
 
 use Phlite\Db\Compile;
+use Phlite\Db\Manager;
 
 class ModelInstanceManager
 extends ResultSet {
@@ -11,6 +12,11 @@ extends ResultSet {
     var $map;
 
     static $objectCache = array();
+
+    function __construct($queryset) {
+        $this->model = $queryset->model;
+        parent::__construct($queryset);
+    }
 
     function cache($model) {
         $key = sprintf('%s.%s',
@@ -156,10 +162,11 @@ extends ResultSet {
     }
 
     function iter() {
-          $func = ($this->map) ? 'fetchRow' : 'fetchArray';
-          if ($row = $this->resource->{$func}()) {
-              $this->cache[] = $this->buildModel($row);
-          }
+        $func = ($this->map) ? 'fetchRow' : 'fetchArray';
+        if ($row = $this->resource->{$func}()) {
+            $model = $this->buildModel($row);
+            return array(spl_object_hash($model), $model);
+        }
     }
 
     function rewind() {

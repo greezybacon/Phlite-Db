@@ -46,6 +46,7 @@ abstract class SqlCompiler {
             'hasbit' => 1,
         );
         $path = explode('__', $criteria);
+        $operator = false;
         if (!isset($options['table'])) {
             $field = array_pop($path);
             if (isset($operators[$field])) {
@@ -361,7 +362,7 @@ abstract class SqlCompiler {
     function getJoins($queryset) {
         $sql = '';
         foreach ($this->joins as $path => $j) {
-            if (!$j['sql'])
+            if (!isset($j['sql']))
                 continue;
             list($base, $constraints) = $j['sql'];
             // Add in path-specific constraints, if any

@@ -276,17 +276,19 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
      */
     function count() {
         // Defer to the iterator if fetching already started
-        if (isset($this->_iterator)) {
+        if (isset($this->_iterator)
+            && $this->_iterator instanceof \Countable
+        ) {
             return $this->_iterator->count();
         }
         // Returned cached count if available
         elseif (isset($this->_count)) {
             return $this->_count;
         }
-        $connection = Manager::getConnection($this->model);
+        $backend = Manager::getBackend($this->model);
         $compiler = $this->getCompiler();
         $stmt = $compiler->compileCount($this);
-        $exec = $connection->execute($stmt);
+        $exec = $backend->execute($stmt);
         $row = $exec->fetchRow();
         return $this->_count = $row[0];
     }
@@ -366,24 +368,32 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
     }
 
     protected function getCompiler() {
-        $connection = Manager::getConnection($this->model);
-        return $connection->getCompiler();
+        return Manager::getBackend($this->model)->getCompiler();
     }
 
+    /**
+     * Purge the database records for the records matching the criteria in
+     * this QuerySet. Returns the number of records deleted as reported by
+     * the database.
+     */
     function delete() {
-        $connection = Manager::getConnection($this->model);
-        $compiler = $connection->getCompiler();
+        $backend = Manager::getBackend($this->model);
+        $compiler = $backend->getCompiler();
         // XXX: Mark all in-memory cached objects as deleted
         $stmt = $compiler->compileBulkDelete($this);
-        $exec = $connection->execute($stmt);
+        $exec = $backend->execute($stmt);
         return $exec->affected_rows();
     }
 
+    /**
+     * Perform a bulk update operation. Send a keyed array of fields and new
+     * new values for the update.
+     */
     function update(array $what) {
-        $connection = Manager::getConnection($this->model);
-        $compiler = $connection->getCompiler();
+        $backend = Manager::getBackend($this->model);
+        $compiler = $backend->getCompiler();
         $stmt = $compiler->compileBulkUpdate($this, $what);
-        $exec = $connection->execute($stmt);
+        $exec = $backend->execute($stmt);
         return $exec->affected_rows();
     }
 
@@ -426,13 +436,12 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
 
         // Load defaults from model
         $model = $this->model;
-        $model::_inspect();
 
         $query = clone $this;
         $options += $this->options;
         // Be careful not to make local modifications based on model meta
         // compilation preferences
-        if ($options['nosort'])
+        if (isset($options['nosort']) && $options['nosort'])
             $query->ordering = array();
         elseif (!$query->ordering && $model::getMeta('ordering'))
             $query->ordering = $model::$meta['ordering'];
@@ -441,9 +450,7 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
         if (!$query->defer && $model::getMeta('defer'))
             $query->defer = $model::getMeta('defer');
 
-        $class = $options['compiler'] ?: $this->compiler;
-        $connection = Manager::getConnection($model);
-        $compiler = $connection->getCompiler();
+        $compiler = Manager::getBackend($model)->getCompiler();
         return $this->query = $compiler->compileSelect($query);
     }
 

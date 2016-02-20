@@ -9,12 +9,12 @@ extends BaseField {
     );
 
     function getCreateSql($name, $compiler) {
-        return sprintf('%s %s(%s)%s%s%s',
+        return sprintf('%s %s%s%s%s%s',
             $compiler->quote($name),
             $compiler->getTypeName($this),
-            $this->length,
+            ($this->length) ? "({$this->length})" : '',
             $this->unsigned ? ' UNSIGNED' : '',
-            ($this->nullable ? ' NOT' : '') . ' NULL',
+            (!$this->nullable ? ' NOT' : '') . ' NULL',
             ($this->default) ? ' DEFAULT ' . $compiler->escape($this->default) : ''
         );
     }

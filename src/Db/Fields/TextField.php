@@ -33,7 +33,7 @@ extends BaseField {
             $this->length,
             isset($this->charset) ? ' CHARSET ' . $this->charset : '',
             isset($this->collation) ? ' COLLATION ' . $this->collation : '',
-            ($this->nullable ? 'NOT ' : '') . 'NULL',
+            (!$this->nullable ? 'NOT ' : '') . 'NULL',
             ($this->default) ? ' DEFAULT ' . $compiler->escape($this->default) : ''
         );
     }
