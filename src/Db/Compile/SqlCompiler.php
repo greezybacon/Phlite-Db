@@ -326,7 +326,9 @@ abstract class SqlCompiler {
      */
     function input($what, $model=false) {
         if ($what instanceof Model\QuerySet) {
-            $q = $what->getQuery(array('nosort'=>!($what->limit || $what->offset)));
+            $q = $what->getQuery(array(
+                Model\Queryset::OPT_NOSORT => !($what->limit || $what->offset))
+            );
             $this->params = array_merge($this->params, $q->params);
             return $q->sql;
         }

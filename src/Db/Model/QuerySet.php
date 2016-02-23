@@ -32,7 +32,14 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
     const ASC = 'ASC';
     const DESC = 'DESC';
 
-    var $iterator = 'Phlite\Db\Model\ModelInstanceManager';
+    const OPT_NOSORT    = 'nosort';
+    const OPT_NOCACHE   = 'nocache';
+
+    const ITER_MODELS   = 1;
+    const ITER_HASH     = 2;
+    const ITER_ROW      = 3;
+
+    var $iter = self::ITER_MODELS;
 
     var $query;
     var $_count;
@@ -95,7 +102,7 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
 
     function order_by($order, $direction=false) {
         if ($order === false)
-            return $this->options(array('nosort' => true));
+            return $this->options(array(self::OPT_NOSORT => true));
 
         $args = func_get_args();
         if (in_array($direction, array(self::ASC, self::DESC))) {
@@ -180,7 +187,7 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
     }
 
     function models() {
-        $this->iterator = $this->iterator;
+        $this->iter = self::ITER_MODELS;
         $this->values = $this->related = array();
         return $this;
     }
@@ -195,7 +202,7 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
     function values() {
         foreach (func_get_args() as $A)
             $this->values[$A] = $A;
-        $this->iterator = __NAMESPACE__.'\HashArrayIterator';
+        $this->iter = self::ITER_HASH;
         // This disables related models
         $this->related = false;
         return $this;
@@ -203,7 +210,7 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
 
     function values_flat() {
         $this->values = func_get_args();
-        $this->iterator = __NAMESPACE__.'\FlatArrayIterator';
+        $this->iter = self::ITER_ROW;
         // This disables related models
         $this->related = false;
         return $this;
@@ -404,12 +411,31 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
     }
 
     // IteratorAggregate interface
-    function getIterator() {
+    function getIterator($iterator=false) {
         if (!isset($this->_iterator)) {
-            $class = $this->iterator;
-            $this->_iterator = new $class($this);
+            $class = $iterator ?: $this->getIteratorClass();
+            $it = new $class($this);
+            if (!isset($this->options[self::OPT_NOCACHE])) {
+                if ($this->iter == self::ITER_MODELS)
+                    // Add findFirst() and such
+                    $it = new ModelResultSet($it);
+                else
+                    $it = new CachedResultSet($it);
+            }
+            $this->_iterator = $it;
         }
         return $this->_iterator;
+    }
+
+    function getIteratorClass() {
+        switch ($this->iter) {
+        case self::ITER_MODELS:
+            return __NAMESPACE__.'\ModelInstanceManager';
+        case self::ITER_HASH:
+            return __NAMESPACE__.'\HashArrayIterator';
+        case self::ITER_ROW:
+            return __NAMESPACE__.'\FlatArrayIterator';
+        }
     }
 
     // ArrayAccess interface
@@ -441,7 +467,7 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
         $options += $this->options;
         // Be careful not to make local modifications based on model meta
         // compilation preferences
-        if (isset($options['nosort']) && $options['nosort'])
+        if (isset($options[self::OPT_NOSORT]))
             $query->ordering = array();
         elseif (!$query->ordering && $model::getMeta('ordering'))
             $query->ordering = $model::$meta['ordering'];

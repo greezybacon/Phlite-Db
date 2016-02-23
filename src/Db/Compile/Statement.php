@@ -48,7 +48,7 @@ class Statement {
 
         $params = $this->params;
         return preg_replace_callback("/:(\d+)/",
-        function($m) {
+        function($m) use ($escape_cb) {
             $p = $this->params[$m[1]-1];
             return $escape_cb($p);
         }, $this->sql);

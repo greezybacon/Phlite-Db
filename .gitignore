@@ -2,6 +2,7 @@
 # Ignore packaged things
 *.phar
 composer.lock
+vendor/
 
 # Ignore stuff added by various editors
 nbproject/

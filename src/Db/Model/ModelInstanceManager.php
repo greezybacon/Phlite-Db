@@ -6,16 +6,16 @@ use Phlite\Db\Compile;
 use Phlite\Db\Manager;
 
 class ModelInstanceManager
-extends ResultSet {
+implements \IteratorAggregate {
+    static $objectCache = array();
 
     var $model;
     var $map;
-
-    static $objectCache = array();
+    var $queryset;
 
     function __construct($queryset) {
+        $this->queryset = $queryset;
         $this->model = $queryset->model;
-        parent::__construct($queryset);
     }
 
     function cache($model) {
@@ -161,59 +161,17 @@ extends ResultSet {
         return $model;
     }
 
-    function iter() {
+    function getIterator() {
+        $backend = Manager::getBackend($this->model);
+        $stmt = $this->queryset->getQuery();
+        $this->resource = $backend->getDriver($stmt);
+        $this->resource->execute();
+        $this->map = $this->resource->getMap();
         $func = ($this->map) ? 'fetchRow' : 'fetchArray';
-        if ($row = $this->resource->{$func}()) {
+
+        while ($row = $this->resource->{$func}()) {
             $model = $this->buildModel($row);
-            return array(spl_object_hash($model), $model);
+            yield $model;
         }
-    }
-
-    function rewind() {
-        parent::rewind();
-        if ($this->resource) {
-            $this->map = $this->resource->getMap();
-        }
-    }
-
-    /**
-     * Find the first item in the current set which matches the given criteria.
-     * This would be used in favor of ::filter() which might trigger another
-     * database query. The criteria is intended to be quite simple and should
-     * not traverse relationships which have not already been fetched.
-     * Otherwise, the ::filter() or ::window() methods would provide better
-     * performance.
-     *
-     * Example:
-     * >>> $a = new User();
-     * >>> $a->roles->add(Role::lookup(['name' => 'administator']));
-     * >>> $a->roles->findFirst(['roles__name__startswith' => 'admin']);
-     * <Role: administrator>
-     */
-    function findFirst($criteria) {
-        $records = $this->findAll($criteria, 1);
-        return @$records[0];
-    }
-
-    /**
-     * Find all the items in the current set which match the given criteria.
-     * This would be used in favor of ::filter() which might trigger another
-     * database query. The criteria is intended to be quite simple and should
-     * not traverse relationships which have not already been fetched.
-     * Otherwise, the ::filter() or ::window() methods would provide better
-     * performance, as they can provide results with one more trip to the
-     * database.
-     */
-    function findAll($criteria, $limit=false) {
-        $records = array();
-        if (!$criteria instanceof Util\Q)
-            $criteria = new Util\Q($criteria);
-        foreach ($this as $record) {
-            if ($criteria->matches($record))
-                $records[] = $record;
-            if ($limit && count($records) == $limit)
-                break;
-        }
-        return $records;
     }
 }

@@ -6,75 +6,21 @@ use Phlite\Db\Manager;
 use Phlite\Util;
 
 abstract class ResultSet
-extends Util\CachingIterator {
-    var $resource;
-    var $stmt;
-    var $queryset;
+implements \IteratorAggregate {
+    var $iterator;
 
-    function __construct($queryset=false) {
-        $this->queryset = $queryset;
-        if ($queryset) {
-            $this->stmt = $queryset->getQuery();
-        }
+    function __construct(\IteratorAggregate $iterator) {
+        $this->iterator = $iterator->getIterator();
     }
 
-    function asArray() {
-        $this->rewind();
-        $this->fillTo(PHP_INT_MAX);
-        return $this->getCache();
+    function next() {
+        $rv = $this->iterator->current();
+        $this->iterator->next();
+        return $rv;
     }
 
-    // Iterator interface
-    function rewind() {
-        if (!isset($this->resource) && $this->queryset) {
-            $backend = Manager::getBackend($this->queryset->model);
-            $this->resource = $backend->getDriver($this->stmt);
-            $this->resource->execute();
-        }
-        parent::rewind();
-    }
-
-    /**
-     * Sort the resultset list in place. This would be useful to change the
-     * sorting order of the items in the list without fetching the list from
-     * the database again.
-     *
-     * Parameters:
-     * $key - (callable|int) A callable function to produce the sort keys
-     *      or one of the SORT_ constants used by the array_multisort
-     *      function
-     * $reverse - (bool) true if the list should be sorted descending
-     *
-     * Returns:
-     * This resultset list for chaining and inlining.
-     */
-    function sort($key=false, $reverse=false) {
-        // Fetch all records into the cache
-        $this->asArray();
-        if (is_callable($key)) {
-            array_multisort(
-                array_map($key, $this->__cache),
-                $reverse ? SORT_DESC : SORT_ASC,
-                $this->__cache);
-        }
-        elseif ($key) {
-            array_multisort($this->__cache,
-                $reverse ? SORT_DESC : SORT_ASC, $key);
-        }
-        elseif ($reverse) {
-            rsort($this->__cache);
-        }
-        else
-            sort($this->__cache);
-        return $this;
-    }
-
-    /**
-     * Reverse the list item in place. Returns this object for chaining
-     */
-    function reverse() {
-        $this->asArray();
-        array_reverse($this->__cache);
-        return $this;
+    function getIterator() {
+        while ($n = $this->next())
+            yield $n;
     }
 }

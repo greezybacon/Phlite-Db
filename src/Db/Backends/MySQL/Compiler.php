@@ -215,7 +215,7 @@ class Compiler extends SqlCompiler {
         $q->related = $q->anotations = false;
         $model = $q->model;
         $q->values = $model::getMeta('pk');
-        $stmt = $q->getQuery(array('nosort' => true));
+        $stmt = $q->getQuery(array(QuerySet::OPT_NOSORT => true));
         $stmt->sql = 'SELECT COUNT(*) FROM ('.$stmt->sql.') __';
        return $stmt;
     }
@@ -269,7 +269,7 @@ class Compiler extends SqlCompiler {
 
         // Compile the ORDER BY clause
         $sort = '';
-        if (!isset($this->options['nosort'])) {
+        if (!isset($this->options[QuerySet::OPT_NOSORT])) {
             if ($orders = $this->getOrderByFields($queryset))
                 $sort = ' ORDER BY '.implode(', ', $orders);
         }
@@ -405,7 +405,7 @@ class Compiler extends SqlCompiler {
                 $sql = "($sql)";
             foreach ($queryset->chain as $qs) {
                 list($qs, $all) = $qs;
-                $q = $qs->getQuery(array('nosort' => true));
+                $q = $qs->getQuery(array(QuerySet::OPT_NOSORT => true));
                 // Rewrite the parameter numbers so they fit the parameter numbers
                 // of the current parameters of the $compiler
                 $self = $this;
