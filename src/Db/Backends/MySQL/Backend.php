@@ -4,7 +4,10 @@ namespace Phlite\Db\Backends\MySQL;
 
 use Phlite\Db;
 
-class Backend extends Db\Backend {
+class Backend
+extends Db\Backend
+implements Db\Transaction,
+           Db\DistributedTransaction {
 
     static $compiler = 'Phlite\Db\Backends\MySQL\Compiler';
     static $executor = 'Phlite\Db\Backends\MySQL\MySQLiQuery';
@@ -133,5 +136,53 @@ class Backend extends Db\Backend {
 
     function escape($what) {
         return $this->conn->escape_string($what);
+    }
+
+    function attempt($sql, $error='') {
+        if (!($rv = $this->conn->real_query($sql)))
+            throw new Db\Exception\OrmError(
+                ($error ?: 'SQL FAILED') . ': ' . $this->conn->error);
+        return $rv;
+    }
+
+    // Transaction interface
+    function beginTransaction() {
+        return $this->conn->autocommit(false);
+    }
+
+    function commit() {
+        return $this->conn->commit();
+    }
+
+    function rollback() {
+        return $this->conn->rollback();
+    }
+
+    // DistributedTransaction interface
+    function startDistributed() {
+        $gtrid = spl_object_hash($this);
+        $this->attempt(sprintf("XA BEGIN '%s'", $this->escape($gtrid)),
+            'Cannot start xa transaction')
+        return $grtid;
+    }
+
+    function tryCommit($gtrid) {
+        $this->attempt(sprintf("XA END '%s'", $this->escape($gtrid)),
+            'Cannot complete xa transaction')
+        $this->attempt(sprintf("XA PREPARE '%s'", $this->escape($gtrid)),
+            'Cannot commit xa transaction')
+        return true;
+    }
+
+    function undoCommit($gtrid) {
+        $this->attempt(sprintf("XA ROLLBACK '%s'", $this->escape($gtrid)),
+            'Cannot undo xa transaction');
+        return true;
+    }
+
+    function finishCommit($gtrid) {
+        $this->attempt(sprintf("XA COMMIT '%s'", $this->escape($gtrid)),
+            'Cannot finish xa transaction');
+        return true;
     }
 }

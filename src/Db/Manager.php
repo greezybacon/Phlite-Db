@@ -7,6 +7,7 @@ use Phlite\Project;
 class Manager {
     protected $routers = array();
     protected $backends = array();
+    protected $transaction;
 
     const READ    = 1;
     const WRITE   = 2;
@@ -146,6 +147,81 @@ class Manager {
         else
             return $migration->revert($router);
     }
+
+    /**
+     * Fetch the current transaction optionally beginning a new transaction
+     * if not already started.
+     */
+    protected function getTransaction($autostart=true, $flags=0) {
+        if (!isset($this->transaction) && $autostart)
+            $this->transaction = $this->beginTransaction($flags);
+        return $this->transaction;
+    }
+
+    protected function add(Model\ModelBase $model, $callback=null, $args=null) {
+        return $this->getTransaction()->add($model, $callback, $args);
+    }
+
+    protected function remove(Model\ModelBase $model, $callback=null, $args=null) {
+        return $this->getTransaction()->delete($model, $callback, $args);
+    }
+
+    /**
+     * Start all model updates in a transaction. All future calls to
+     * ::save() and ::delete() will be placed in the transaction and
+     * commited with the transaction.
+     *
+     * Parameters:
+     * $mode - Operation mode for the transaction. See the FLAG_* flags on
+     *      the TransactionCoordinator class for valid flag settings.
+     *
+     * Returns:
+     * <TransactionCoordinatory> newly created transaction
+     */
+    protected function beginTransaction($mode=0) {
+        if (isset($this->transaction))
+            throw new Exception\OrmError('Transaction already started. Use `commit` or `rollback` to complete the current transaction before staring a new one');
+
+        $this->transaction = new TransactionCoordinator($this, $mode);
+        return $this->transaction;
+    }
+
+    protected function flush() {
+        if ($this->transaction)
+            return $this->transaction->flush();
+    }
+
+    /**
+     * Commit the current transaction. Transactions must be started with
+     * ::beginTransaction(). Transactions are automatically coordinated
+     * among several databases where supported.
+     */
+    protected function commit() {
+        if (!isset($this->transaction))
+            throw new Exception\OrmError('Transaction not started');
+
+        $rv = $this->transaction->commit();
+        unset($this->transaction);
+        return $rv;
+    }
+
+    protected function rollback() {
+        if (!isset($this->transaction))
+            throw new Exception\OrmError('Transaction not started');
+
+        $rv = $this->transaction->rollback();
+        unset($this->transaction);
+        return $rv;
+    }
+
+    protected function retry($transaction=null) {
+        $transaction = $transaction ?: $this->transaction;
+        if (!isset($transaction))
+            throw new Exception\OrmError('No transaction specified to be retried');
+
+        $transaction->retry($this);
+    }
+    
 
     // Allow "static" access to instance methods of the Manager singleton. All
     // static instance methods are hidden to allow routing through this
