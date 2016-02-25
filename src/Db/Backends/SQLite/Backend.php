@@ -4,7 +4,9 @@ namespace Phlite\Db\Backends\SQLite;
 use Phlite\Db;
 use Phlite\Util;
 
-class Backend extends Db\Backend {
+class Backend
+extends Db\Backend
+implements Db\Transaction {
     static $defaults = [
       'COMPILER'  => 'Phlite\Db\Backends\SQLite\Compiler',
       'DDLCOMPILER' => 'Phlite\Db\Backends\SQLite\DdlCompiler',
@@ -18,7 +20,7 @@ class Backend extends Db\Backend {
     protected $driver;
 
     function __construct(array $info) {
-        $this->info = $info; # new Util\ArrayObject($info);
+        $this->info = new Util\ArrayObject($info);
         $this->compiler = @$info['OPTIONS']['COMPILER']
           ?: static::$defaults['COMPILER'];
         $this->ddlcompiler = @$info['OPTIONS']['DDLCOMPILER']
@@ -52,8 +54,8 @@ class Backend extends Db\Backend {
             // No auto reconnect, use ::disconnect() first
             return;
 
-        $db = $this->info['FILE'] ?: ':memory:'; #$this->info->get('FILE', ':memory:');
-        #$options = new Util\ArrayObject($this->info->get('OPTIONS', array()));
+        $db = $this->info->get('FILE', ':memory:');
+        $options = new Util\ArrayObject($this->info->get('OPTIONS', array()));
 
         // Assertions
         if ($db !== ':memory:') {
@@ -67,7 +69,7 @@ class Backend extends Db\Backend {
 
         // TODO: Handle encryption key, read-only and such
 
-        $this->charset = 'utf8'; #$options->get('CHARSET', 'utf8');
+        $this->charset = $options->get('CHARSET', 'utf8');
 
         // TODO: Perhaps create PHP function for collation to enforce the
         //       charset setting
@@ -75,5 +77,18 @@ class Backend extends Db\Backend {
 
     function escape($what) {
         return $this->cnxn->escapeString($what);
+    }
+
+    // Transaction interface
+    function beginTransaction() {
+        return $this->cnxn->exec('BEGIN');
+    }
+
+    function rollback() {
+        return $this->cnxn->exec('ROLLBACK');
+    }
+
+    function commit() {
+        return $this->cnxn->exec('COMMIT');
     }
 }
