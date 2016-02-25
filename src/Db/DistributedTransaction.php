@@ -1,5 +1,5 @@
 <?php
-namespace Phlite\Db\Backends;
+namespace Phlite\Db;
 
 interface DistributedTransaction {
 
