@@ -3,6 +3,7 @@ namespace Phlite\Db;
 
 use Phlite\Db\Exception;
 use Phlite\Db\Manager;
+use Phlite\Signal;
 
 /**
  * Utility class to allow several operations to be performed atomically in a
@@ -69,27 +70,31 @@ class TransactionCoordinator {
     }
 
     function add(Model\ModelBase $model, $callback, $args=null) {
-        $this->captureBackend($model);
-        if ($this->log->isDeleted($model)) {
+        // If there's nothing in the model to be saved, then we're done
+        if (count($model->__dirty__) === 0)
+            return;
+
+        if ($this->log->isDeleted($model))
             // No further changes necessary as the object will be deleted
             return;
 
-        $record = $this->log->add($type, $model);
+        $this->captureBackend($model);
+        $record = $this->log->add($model);
         if ($this->mode & self::FLAG_AUTOFLUSH)
-            $this->play($record);
+            return $this->play($record);
     }
 
     function delete(Model\ModelBase $model) {
         $this->captureBackend($model);
-        $record = $this->log->remove($type, $model);
+        $record = $this->log->remove($model);
 
         if ($this->mode & self::FLAG_AUTOFLUSH)
-            $this->play($record);
+            return $this->play($record);
     }
 
     protected function captureBackend($model) {
         // Capture the number of backends we're dealing with
-        $backend = $this->manager->getConnection($model); 
+        $backend = Manager::getBackend($model);
         $bkkey = spl_object_hash($backend);
 
         if ($this->started && !isset($this->backend[$bkkey])) {
@@ -134,14 +139,14 @@ class TransactionCoordinator {
             throw new Exception\OrmError('Multiple backends require a distributed transaction');
 
         foreach ($this->backends as $bk) {
-            if ($distributed && $backend instanceof DistributedTransaction)
+            if ($distributed && $bk instanceof DistributedTransaction)
                 $bk->startDistributed();
-            elseif (!$distributed && $backend instanceof Transaction)
+            elseif (!$distributed && $bk instanceof Transaction)
                 $bk->beginTransaction();
             else
                 throw new Exception\OrmError(sprintf(
                     '%s: Does not support transactions',
-                    get_class($backend)
+                    get_class($bk)
                 ));
         }
 
@@ -159,7 +164,7 @@ class TransactionCoordinator {
      */
     function flush() {
         $this->start();
-        foreach ($this->log->iterDirty() as $tmd) {
+        foreach ($this->log->getSortedJournal() as $tmd) {
             $this->play($tmd);
         }
     }
@@ -170,11 +175,44 @@ class TransactionCoordinator {
     protected function play($tmd) {
         list($type, $model, $dirty) = $tmd;
         if ($type === self::TYPE_DELETE) {
-            $this->manager->_delete($model);
+            return Manager::delete($model);
         }
         else {
-            $this->manager->_save($model);
+            return $this->saveModel($model);
         }
+    }
+
+    protected function saveModel($model) {
+        $pk = $model::getMeta('pk');
+        $wasnew = $model->__new__;
+        try {
+            if (false === ($ex = Manager::save($model))) {
+                // This doesn't really signify an error. It just means that
+                // the database believes that the row did not change. For
+                // inserts though, it's a deal breaker
+                if ($wasnew) {
+                    return false;
+                }
+            }
+        }
+        catch (Exception\OrmError $e) {
+            return false;
+        }
+
+        if ($wasnew) {
+            // XXX: Ensure AUTO_INCREMENT is set for the field
+            if (count($pk) === 1) {
+                $key = $pk[0];
+                $id = $ex->insert_id();
+                if (!isset($model->{$key}) && $id)
+                    $model->__ht__[$key] = $id;
+            }
+            $model->onAfterCreate();
+        }
+        else {
+            $model->onAfterUpdate();
+        }
+        return true;
     }
 
     function commit($retry=null) {
@@ -182,21 +220,22 @@ class TransactionCoordinator {
 
         // If $retry not specified, used configured default
         if (!isset($retry)) {
-            $retry = $this->flags & self::FLAG_RETRY_COMMIT > 0;
+            $retry = $this->mode & self::FLAG_RETRY_COMMIT > 0;
         }
 
         if (!$this->distributed) {
             // NOTE: There's only one backend here, but it's in a list
             foreach ($this->backends as $bk) {
                 try {
-                    if ($bk->commit()) {
-                        $this->log->reset();
-                    }
+                    if (!$bk->commit())
+                        return false;
+                    $this->log->reset();
                 }
                 catch (Exception $ex) {
                     // XXX: Rollback if unsuccessful?
                 }
             }
+            return true;
         }
 
         $success = true;

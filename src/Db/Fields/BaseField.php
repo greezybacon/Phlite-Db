@@ -16,10 +16,11 @@ abstract class BaseField {
     }
 
     static function getDefaults() {
+        $defaults =  static::$defaults;
         if ($parent = get_parent_class(get_called_class()))
-            return static::$defaults + $parent::getDefaults();
+            $defaults += $parent::getDefaults();
 
-        return static::$defaults;
+        return $defaults;
     }
 
     /**

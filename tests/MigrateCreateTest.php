@@ -1,27 +1,7 @@
 <?php
 use Phlite\Db;
 
-class User
-extends Db\Model\ModelBase {
-    use Db\Model\Ext\ActiveRecord;
-    static $meta = [
-        'table' => 'user',
-        'pk' => ['id'],
-    ];
-}
-
-class CreateModels
-extends Db\Migrations\Migration {
-    function getOperations() {
-        return [
-            new Db\Migrations\CreateModel('User', [
-                'id'        => new Db\Fields\AutoIdField(),
-                'name'      => new Db\Fields\TextField(['length' => 64]),
-                'username'  => new Db\Fields\TextField(['length' => 32]),
-            ]),
-        ];
-    }
-}
+include_once 'Migrations.php';
 
 class CreateMigrateTest
 extends PHPUnit_Framework_TestCase {
