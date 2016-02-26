@@ -17,10 +17,8 @@ trait ActiveRecord {
      * `model.deleted` after successful delete
      */
     function delete() {
-        $ex = Manager::delete($this);
         try {
-            $ex->execute();
-            if ($ex->affected_rows() != 1)
+            if (false === ($ex = Manager::delete($this)))
                 return false;
 
             $this->__deleted__ = true;
@@ -59,9 +57,9 @@ trait ActiveRecord {
         // another *new* object, then save those objects first and set the
         // local foreign key field values
         foreach (static::getMeta('joins') as $prop => $j) {
-            if (isset($this->ht[$prop])
-                && ($foreign = $this->ht[$prop])
-                && $foreign instanceof VerySimpleModel
+            if (isset($this->__ht__[$prop])
+                && ($foreign = $this->__ht__[$prop])
+                && $foreign instanceof Model\ModelBase
                 && !in_array($j['local'], $pk)
                 && null === $this->get($j['local'])
             ) {
@@ -75,26 +73,25 @@ trait ActiveRecord {
         if (count($this->__dirty__) === 0)
             return true;
 
-        $ex = Manager::save($this);
         try {
-            $ex->execute();
-            if ($ex->affected_rows() != 1) {
+            if (false === ($ex = Manager::save($this))) {
                 // This doesn't really signify an error. It just means that
                 // the database believes that the row did not change. For
                 // inserts though, it's a deal breaker
-                if ($this->__new__) {
+                if ($wasnew) {
                     return false;
                 }
-                else {
-                    // No need to reload the record if requested — the
-                    // database didn't update anything
-                    $refetch = false;
-                }
+                // No need to reload the record if requested — the
+                // database didn't update anything
+                $refetch = false;
             }
         }
         catch (Exception\OrmError $e) {
             return false;
         }
+
+        // Reset anything marked dirty as it is not synced with the database
+        $this->__dirty__ = array();
 
         if ($wasnew) {
             // XXX: Ensure AUTO_INCREMENT is set for the field
@@ -104,43 +101,19 @@ trait ActiveRecord {
                 if (!isset($this->{$key}) && $id)
                     $this->__ht__[$key] = $id;
             }
-            $this->__new__ = false;
-            Signal::send('model.created', $this);
+            $this->onAfterCreate();
         }
         else {
-            $data = array('dirty' => $this->__dirty__);
-            Signal::send('model.updated', $this, $data);
+            $this->onAfterUpdate();
         }
-        # Refetch row from database
+
+        // Refetch row from database
         if ($refetch) {
             // Preserve non database information such as list relationships
             // across the refetch
             $this->__ht__ = static::objects()->filter($this->getPk())->values()->one()
                 + $this->__ht__;
         }
-        if ($wasnew) {
-            // Attempt to update foreign, unsaved objects with the PK of
-            // this newly created object
-            foreach (static::getMeta('joins') as $prop => $j) {
-                if (isset($this->ht[$prop])
-                    && ($foreign = $this->ht[$prop])
-                    && in_array($j['local'], $pk)
-                ) {
-                    if ($foreign instanceof Model\ModelBase
-                        && null === $foreign->get($j['fkey'][1])
-                    ) {
-                        $foreign->set($j['fkey'][1], $this->get($j['local']));
-                    }
-                    elseif ($foreign instanceof Model\InstrumentedList) {
-                        foreach ($foreign as $item) {
-                            if (null === $item->get($j['fkey'][1]))
-                                $item->set($j['fkey'][1], $this->get($j['local']));
-                        }
-                    }
-                }
-            }
-        }
-        $this->__dirty__ = array();
         return true;
     }
 }

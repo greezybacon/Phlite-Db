@@ -39,7 +39,7 @@ implements SqlDriver {
         if (!($this->dbstmt = $this->conn->prepare($this->stmt->sql)))
             throw new Exception\InconsistentModel(
                 'Unable to prepare query: '.$this->conn->lastErrorMsg()
-                .': '.$sql);
+                .': '.$this->stmt->sql);
 
         // TODO: Implement option to drop parameters
 

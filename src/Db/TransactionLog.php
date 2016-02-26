@@ -3,6 +3,7 @@
 namespace Phlite\Db;
 
 use Phlite\Db\Model;
+use Phlite\Util;
 
 /**
  * Utility class used to keep track of all updates performed inside a single
@@ -42,6 +43,9 @@ extends Util\ArrayObject {
     var $history;
 
     protected function getKey(Model\ModelBase $model) {
+        if ($model->__new__)
+            return spl_object_hash($model);
+
         return sprintf('%s.%s',
             $model::$meta->model, implode('.', $model->get('pk')));
     }
@@ -59,7 +63,7 @@ extends Util\ArrayObject {
         else {
             $type = $model->__new__
                 ? TransactionCoordinator::TYPE_INSERT
-                : TransactionCoordinator::TYPE_UPDATE
+                : TransactionCoordinator::TYPE_UPDATE;
         }
         $dirty = $this->getDirtyList($model, $_dirty);
         return $this[$key] = array($type, $model, $dirty);
@@ -87,6 +91,9 @@ extends Util\ArrayObject {
      * Check to see if the cited model has been marked for deletion
      */
     function isDeleted($model) {
+        if ($model->__new__)
+            return false;
+
         $key = $this->getKey($model);
         if (!isset($this->storage[$key]))
             return false;
@@ -163,8 +170,55 @@ extends Util\ArrayObject {
         reset($this->journal);
         while (list($key,) = each($this->journal)) {
             yield $this->storage[$key];
-            unset($this->journal[$key];
+            unset($this->journal[$key]);
         }
+    }
+
+    /**
+     * Fetch a list of the dirty items added to the journal. The journal is
+     * also cleared. Multiple calls to this method will yield differing
+     * results.
+     */
+    function getJournal() {
+        // Fetch and clear the journal
+        return new Util\ArrayObject($this->iterJournal());
+    }
+
+    /**
+     * Fetch a list of dirty items in the journal sorted in such a way that
+     * items in the list with foreign key save dependencies are sorted later
+     * in the list. That is, if two objects were created, and one references
+     * the other, the other will sort earlier in the list so that it can be
+     * saved and its ID number can be placed in the latter one before it is
+     * saved.
+     */
+    function getSortedJournal() {
+        $journal = $this->getJournal();
+        $journal->sort(function($record) {
+            list($type, $model, $dirty) = $record;
+            // If the model has references to foreign primary keys, then
+            // those objects should be saved first.
+            $fkeys = 0;
+            $pk = $model::getMeta('pk');
+            foreach ($model::getMeta('joins') as $prop => $j) {
+                if (// Model has a relationship for this join
+                    isset($model->ht[$prop])
+                    // ... and its an object, a Model object
+                    && ($foreign = $model->ht[$prop])
+                    && $foreign instanceof Model\ModelBase
+                    // ... and the fkey is not part of this model's pkey
+                    && !in_array($j['local'], $pk)
+                    // ... and the local fkey field is not set
+                    && null === $model->get($j['local'])
+                    // ... and the foreign object is new
+                    && $foreign->__new__
+                ) {
+                    $fkeys++;
+                }
+            }
+            return $fkeys;
+        });
+        return $journal;
     }
 
     /**

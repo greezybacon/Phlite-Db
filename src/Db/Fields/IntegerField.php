@@ -15,7 +15,7 @@ extends BaseField {
             ($this->length) ? "({$this->length})" : '',
             $this->unsigned ? ' UNSIGNED' : '',
             (!$this->nullable ? ' NOT' : '') . ' NULL',
-            ($this->default) ? ' DEFAULT ' . $compiler->escape($this->default) : ''
+            ($this->default) ? (' DEFAULT ' . $compiler->escape($this->default)) : ''
         );
     }
 }

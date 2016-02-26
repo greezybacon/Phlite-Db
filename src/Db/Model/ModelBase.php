@@ -4,7 +4,7 @@ namespace Phlite\Db\Model;
 
 use Phlite\Db\Exception;
 use Phlite\Db\Manager;
-use Phlite\Signal;
+use Phlite\Db\Signals;
 use Phlite\Util;
 
 abstract class ModelBase {  
@@ -287,6 +287,40 @@ abstract class ModelBase {
         foreach ($this::getMeta('pk') as $f)
             $pk[$f] = $this->__ht__[$f];
         return $pk;
+    }
+
+    function onAfterUpdate() {
+        $data = array('dirty' => $this->__dirty__);
+        Signals\ModelUpdated::send($this, $data);
+        $this->__dirty__ = array();
+    }
+
+    function onAfterCreate() {
+        $this->__new__ = false;
+        Signals\ModelCreated::send($this);
+        $this->__dirty__ = array();
+
+        // Attempt to update foreign, unsaved objects with the PK of this
+        // newly created object
+        $pk = static::getMeta('pk');
+        foreach (static::getMeta('joins') as $prop => $j) {
+            if (isset($this->__ht__[$prop])
+                && ($foreign = $this->__ht__[$prop])
+                && in_array($j['local'], $pk)
+            ) {
+                if ($foreign instanceof Model\ModelBase
+                    && null === $foreign->get($j['fkey'][1])
+                ) {
+                    $foreign->set($j['fkey'][1], $this->get($j['local']));
+                }
+                elseif ($foreign instanceof Model\InstrumentedList) {
+                    foreach ($foreign as $item) {
+                        if (null === $item->get($j['fkey'][1]))
+                            $item->set($j['fkey'][1], $this->get($j['local']));
+                    }
+                }
+            }
+        }
     }
 
     function __toString() {

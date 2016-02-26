@@ -103,7 +103,13 @@ class Manager {
         Model\ModelInstanceManager::uncache($model);
         $backend = static::getManager()->getBackend($model, Router::WRITE);
         $stmt = $backend->getCompiler()->compileDelete($model);
-        return $backend->getDriver($stmt);
+
+        $ex = $backend->getDriver($stmt);
+        $ex->execute();
+        if ($ex->affected_rows() != 1)
+            return false;
+
+        return $ex;
     }
 
     /**
@@ -113,7 +119,7 @@ class Manager {
      * insert or an update as necessary.
      *
      * Returns:
-     * <SqlExecutor> — an instance of SqlExecutor which can perform the
+     * <SqlDriver> — an instance of SqlDriver which can perform the
      * actual save of the model (via ::execute()). Thereafter, query
      * ::insert_id() for an auto id value and ::affected_rows() for the
      * count of affected rows by the update (should be 1).
@@ -126,7 +132,12 @@ class Manager {
         else
             $stmt = $compiler->compileUpdate($model);
 
-        return $backend->getDriver($stmt);
+        $ex = $backend->getDriver($stmt);
+        $ex->execute();
+        if ($ex->affected_rows() != 1)
+            return false;
+
+        return $ex;
     }
 
     /**
@@ -154,7 +165,7 @@ class Manager {
      */
     protected function getTransaction($autostart=true, $flags=0) {
         if (!isset($this->transaction) && $autostart)
-            $this->transaction = $this->beginTransaction($flags);
+            $this->transaction = $this->openTransaction($flags);
         return $this->transaction;
     }
 
@@ -178,7 +189,7 @@ class Manager {
      * Returns:
      * <TransactionCoordinatory> newly created transaction
      */
-    protected function beginTransaction($mode=0) {
+    protected function openTransaction($mode=0) {
         if (isset($this->transaction))
             throw new Exception\OrmError('Transaction already started. Use `commit` or `rollback` to complete the current transaction before staring a new one');
 
