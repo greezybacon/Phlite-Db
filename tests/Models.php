@@ -3,7 +3,6 @@ use Phlite\Db;
 
 class User
 extends Db\Model\ModelBase {
-    use Db\Model\Ext\ActiveRecord;
     static $meta = [
         'table' => 'user',
         'pk' => ['id'],
@@ -17,7 +16,6 @@ extends Db\Model\ModelBase {
 
 class EmailAddress
 extends Db\Model\ModelBase {
-    use Db\Model\Ext\ActiveRecord;
     static $meta = [
         'table' => 'user_email',
         'pk' => ['id'],
