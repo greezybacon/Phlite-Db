@@ -202,9 +202,9 @@ extends Util\ArrayObject {
             $pk = $model::getMeta('pk');
             foreach ($model::getMeta('joins') as $prop => $j) {
                 if (// Model has a relationship for this join
-                    isset($model->ht[$prop])
+                    isset($model->__ht__[$prop])
                     // ... and its an object, a Model object
-                    && ($foreign = $model->ht[$prop])
+                    && ($foreign = $model->__ht__[$prop])
                     && $foreign instanceof Model\ModelBase
                     // ... and the fkey is not part of this model's pkey
                     && !in_array($j['local'], $pk)
