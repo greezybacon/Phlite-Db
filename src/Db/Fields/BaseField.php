@@ -7,6 +7,7 @@ abstract class BaseField {
     static $defaults = array(
         'nullable' => true,
         'default' => null,
+        'pk' => false,
     );
     var $options;
 

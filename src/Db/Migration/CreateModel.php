@@ -48,7 +48,7 @@ extends Operation {
         $bk = $router($this->modelClass);
         $class = $this->modelClass;
         $table = $class::getMeta('table');
-        $compiler = $bk->getCompiler();
+        $compiler = $bk->getDdlCompiler();
         $statement = $compiler->compileCreate($class, $this->fields, $this->options);
         $bk->execute($statement);
 

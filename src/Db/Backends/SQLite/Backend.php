@@ -7,24 +7,33 @@ use Phlite\Util;
 class Backend extends Db\Backend {
     static $defaults = [
       'COMPILER'  => 'Phlite\Db\Backends\SQLite\Compiler',
+      'DDLCOMPILER' => 'Phlite\Db\Backends\SQLite\DdlCompiler',
       'DRIVER'    => 'Phlite\Db\Backends\SQLite\Driver',
     ];
 
     var $info;
     var $cnxn;
     protected $compiler;
+    protected $ddlcompiler;
     protected $driver;
 
     function __construct(array $info) {
         $this->info = $info; # new Util\ArrayObject($info);
         $this->compiler = @$info['OPTIONS']['COMPILER']
           ?: static::$defaults['COMPILER'];
+        $this->ddlcompiler = @$info['OPTIONS']['DDLCOMPILER']
+          ?: static::$defaults['DDLCOMPILER'];
         $this->driver = @$info['OPTIONS']['DRIVER']
           ?: static::$defaults['DRIVER'];
     }
 
     function getCompiler($options=false) {
        $class = $this->compiler;
+       return new $class($this, $options);
+    }
+
+    function getDdlCompiler($options=false) {
+       $class = $this->ddlcompiler;
        return new $class($this, $options);
     }
 

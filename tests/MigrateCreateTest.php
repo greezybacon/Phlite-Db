@@ -15,7 +15,7 @@ extends Db\Migrations\Migration {
     function getOperations() {
         return [
             new Db\Migrations\CreateModel('User', [
-                'id'        => new Db\Fields\AutoIdField(),
+                'id'        => new Db\Fields\AutoIdField(['pk' => true]),
                 'name'      => new Db\Fields\TextField(['length' => 64]),
                 'username'  => new Db\Fields\TextField(['length' => 32]),
             ]),

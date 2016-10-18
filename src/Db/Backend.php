@@ -20,6 +20,8 @@ abstract class Backend {
      */
     abstract function getCompiler($options=false);
 
+    abstract function getDdlCompiler($options=false);
+
     abstract function getDriver(Compile\Statement $stmt);
 
     function execute(Compile\Statement $stmt) {
