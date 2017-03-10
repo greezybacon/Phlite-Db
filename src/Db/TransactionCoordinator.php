@@ -3,7 +3,7 @@ namespace Phlite\Db;
 
 use Phlite\Db\Exception;
 use Phlite\Db\Manager;
-use Phlite\Signal;
+use Phlite\Db\Signals;
 
 /**
  * Utility class to allow several operations to be performed atomically in a
@@ -69,7 +69,7 @@ class TransactionCoordinator {
         return $this->log;
     }
 
-    function add(Model\ModelBase $model, $callback, $args=null) {
+    function add(Model\ModelBase $model) {
         // If there's nothing in the model to be saved, then we're done
         if (count($model->__dirty__) === 0)
             return;
@@ -169,50 +169,14 @@ class TransactionCoordinator {
         }
     }
 
-    /**
-     * Actually process a log entry and send it to the database
-     */
     protected function play($tmd) {
         list($type, $model, $dirty) = $tmd;
         if ($type === self::TYPE_DELETE) {
-            return Manager::delete($model);
+            return $model->delete();
         }
         else {
-            return $this->saveModel($model);
+            return $model->save();
         }
-    }
-
-    protected function saveModel($model) {
-        $pk = $model::getMeta('pk');
-        $wasnew = $model->__new__;
-        try {
-            if (false === ($ex = Manager::save($model))) {
-                // This doesn't really signify an error. It just means that
-                // the database believes that the row did not change. For
-                // inserts though, it's a deal breaker
-                if ($wasnew) {
-                    return false;
-                }
-            }
-        }
-        catch (Exception\OrmError $e) {
-            return false;
-        }
-
-        if ($wasnew) {
-            // XXX: Ensure AUTO_INCREMENT is set for the field
-            if (count($pk) === 1) {
-                $key = $pk[0];
-                $id = $ex->insert_id();
-                if (!isset($model->{$key}) && $id)
-                    $model->__ht__[$key] = $id;
-            }
-            $model->onAfterCreate();
-        }
-        else {
-            $model->onAfterUpdate();
-        }
-        return true;
     }
 
     function commit($retry=null) {
@@ -263,7 +227,16 @@ class TransactionCoordinator {
         return $success;
     }
 
-    function rollback() {
+    /**
+     * Parameters:
+     * $restore - (boolean:false), if set to TRUE, the original state of the
+     *      ORM models will be restored in memory after the transaction has
+     *      been aborted in the database.
+     *
+     * Returns:
+     * (boolean) TRUE if the rollback succeeded, and FALSE otherwise.
+     */
+    function rollback($restore=false) {
         // Anything currently dirty is no longer dirty
         foreach ($this->log->iterDirty() as $tmd) {
             list($type, $model, $dirty) = $tmd;
@@ -280,7 +253,28 @@ class TransactionCoordinator {
 
         // NOTE: There's only one backend here, but it's in a list
         foreach ($this->backends as $bk) {
-            return $bk->rollback();
+            if (!$bk->rollback())
+                return false;
+        }
+
+        if ($restore) {
+            // Don't send to the database, nor start a transaction. This will
+            // attempt to synchronize the state or the models before the
+            // transaction log was started.
+            foreach ($log as $record) {
+                list($type, $model, $dirty) = $tmd;
+                if ($type == TransactionCoordinator::TYPE_INSERT) {
+                    $model_class = get_class($model);
+                    $model = new $model_class($dirty);
+                }
+                elseif ($type == TransactionCoordinator::TYPE_DELETE) {
+                    Model\ModelInstanceManager::uncache($model);
+                }
+                else {
+                    foreach ($dirty as $f=>$v)
+                        $model->set($f, $v);
+                }
+            }
         }
     }
 
@@ -303,7 +297,8 @@ class TransactionCoordinator {
      * >>> $session->replayLog($session->getLog());
      */
     function replayLog(TransactionLog $log) {
-        foreach ($log as $record)
+        foreach ($log as $record) {
             $this->play($record);
+        }
     }
 }
