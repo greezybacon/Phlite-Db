@@ -37,9 +37,10 @@ extends PHPUnit_Framework_TestCase {
     function testSaveRelated_Session() {
         $user = new User(['name' => 'John Doe', 'username' => 'doejo']);
         $email = $user->email = new EmailAddress(['address' => 'nomail@nothanks.tld']);
-        Db\Manager::add($user);
-        Db\Manager::add($email);
-        Db\Manager::flush();
+        $session = Db\Manager::getTransaction();
+        $session->add($user);
+        $session->add($email);
+        $session->flush();
 
         $this->assertNotNull($email->id);
         $this->assertNotNull($user->email_id);
