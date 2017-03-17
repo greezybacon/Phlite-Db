@@ -158,7 +158,7 @@ class Compiler extends SqlCompiler {
         return array($base, $constraints);
     }
 
-    function addParam($what, $slot=false) {
+    function addParam($what) {
         $this->params[] = $what;
         return ':'.(count($this->params));
     }

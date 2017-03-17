@@ -35,9 +35,9 @@ extends PHPUnit_Framework_TestCase {
     function testCreateModel() {
         Db\Manager::migrate(new CreateModels());
 
-        $this->assertContains('id', User::getMeta('fields'));
-        $this->assertContains('name', User::getMeta('fields'));
-        $this->assertContains('username', User::getMeta('fields'));
+        $this->assertContains('id', User::getMeta()->getFields());
+        $this->assertContains('name', User::getMeta()->getFields());
+        $this->assertContains('username', User::getMeta()->getFields());
     }
 
     /**
@@ -66,7 +66,12 @@ extends PHPUnit_Framework_TestCase {
      */
     function testDelete() {
         $u = User::lookup(['username' => 'jodoe']);
+        $before = count(User::objects());
         $this->assertTrue($u->delete());
-        $this->assertEquals(0, count(User::objects()));
+        $this->assertEquals($before - 1, count(User::objects()));
+        $this->assertTrue($u->__deleted__);
+
+        $this->expectException(Db\Exception\DoesNotExist::class);
+        User::lookup(['username' => 'jodoe']);
     }
 }

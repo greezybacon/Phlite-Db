@@ -355,7 +355,7 @@ abstract class SqlCompiler {
      * (String) string to be embedded in the statement where the parameter
      * should be used server-side.
      */
-    abstract function addParam($what, $param=false);
+    abstract function addParam($what);
 
     function getParams() {
         return $this->params;

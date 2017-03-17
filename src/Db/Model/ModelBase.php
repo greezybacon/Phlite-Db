@@ -8,13 +8,14 @@ use Phlite\Signal;
 use Phlite\Util;
 
 abstract class ModelBase {  
+    static $metaclass = __NAMESPACE__ . '\ModelMeta';
     static $meta = array(
         'table' => false,
         'ordering' => false,
         'pk' => false
     );
 
-    var $__ht__;
+    var $__ht__ = array();
     var $__dirty__ = array();
     var $__new__ = false;
     var $__deferred__ = array();
@@ -201,21 +202,22 @@ abstract class ModelBase {
         $this->__deleted__ = false;
         foreach (static::$meta['pk'] as $f)
             $this->__unset($f);
-        $this->__dirty__ = array_fill(array_keys($this->__ht__), null);
+        $this->__dirty__ = array_fill_keys(array_keys($this->__ht__), null);
     }
 
     function __onload() {}
     static function __oninspect() {}
 
     static function _inspect() {
-        static::$meta = new ModelMeta(get_called_class());
+        $mc = static::$metaclass;
+        static::$meta = new $mc(get_called_class());
 
         // Let the model participate
         static::__oninspect();
     }
 
     static function getMeta($key=false) {
-        if (!static::$meta instanceof ModelMeta)
+        if (!static::$meta instanceof static::$metaclass)
             static::_inspect();
         $M = static::$meta;
         return ($key) ? $M->offsetGet($key) : $M;
