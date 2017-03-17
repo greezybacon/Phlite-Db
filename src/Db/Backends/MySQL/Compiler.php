@@ -109,6 +109,29 @@ class Compiler extends SqlCompiler {
         return sprintf('%1$s BETWEEN %2$s AND %3$s', $a, $b[0], $b[1]);
     }
 
+    function compileJoinConstraint($model, $local, $foreign, $table, $alias) {
+        list($rmodel, $right) = $foreign;
+        // Support a constant constraint with
+        // "'constant'" => "Model.field_name"
+        if ($local[0] == "'") {
+            $lhs = $this->input(trim($local, '\'"'));
+        }
+        else {
+            $lhs = $model::getMeta()->getField($local)
+                ->getJoinConstraint($local, $table, $this);
+        }
+        // Support local constraint
+        // field_name => "'constant'"
+        if ($rmodel[0] == "'" && !$right) {
+            $rhs = $this->input(trim($rmodel, '\'"'));
+        }
+        else {
+            $rhs = $rmodel::getMeta()->getField($right)
+                ->getJoinConstraint($right, $alias, $this);
+        }
+        return array($lhs, $rhs);
+    }
+
     function compileJoin($tip, $model, $alias, $info, $extra=false) {
         $constraints = array();
         $join = ' JOIN ';
@@ -119,29 +142,8 @@ class Compiler extends SqlCompiler {
         else
             $table = $this->quote($model::getMeta('table'));
         foreach ($info['constraint'] as $local => $foreign) {
-            list($rmodel, $right) = $foreign;
-            // Support a constant constraint with
-            // "'constant'" => "Model.field_name"
-            if ($local[0] == "'") {
-                $constraints[] = sprintf("%s.%s = %s",
-                    $alias, $this->quote($right),
-                    $this->input(trim($local, '\'"'))
-                );
-            }
-            // Support local constraint
-            // field_name => "'constant'"
-            elseif ($rmodel[0] == "'" && !$right) {
-                $constraints[] = sprintf("%s.%s = %s",
-                    $table, $this->quote($local),
-                    $this->input(trim($rmodel, '\'"'))
-                );
-            }
-            else {
-                $constraints[] = sprintf("%s.%s = %s.%s",
-                    $table, $this->quote($local), $alias,
-                    $this->quote($right)
-                );
-            }
+            list($lhs, $rhs) = $this->compileJoinConstraint($model, $local, $foreign, $table, $alias);
+            $constraints[] = "$lhs = $rhs";
         }
         // Support extra join constraints
         if ($extra instanceof Util\Q) {
@@ -504,8 +506,10 @@ class Compiler extends SqlCompiler {
     }
 
     // Returns meta data about the table used to build queries
-    function inspectTable($table, $details=false, $cacheable=true) {
+    function inspectTable($meta, $details=false, $cacheable=true) {
         static $cache = array();
+        $table = $meta['table'];
+        $hints = $meta['field_types'];
 
         // XXX: Assuming schema is not changing — add support to track
         //      current schema
@@ -517,7 +521,7 @@ class Compiler extends SqlCompiler {
         $driv->execute();
         $fields = $driv->res->fetch_fields();
         foreach ($fields as $F) {
-            $C = ($details) ? $this->makeField($F) : $F->name;
+            $C = ($details) ? $this->makeField($F, $hints) : $F->name;
             $columns[$F->name] = $C;
         }
         // XXX: This assumes usage of mysqli
@@ -526,8 +530,8 @@ class Compiler extends SqlCompiler {
         return $cacheable ? ($cache[$table] = $columns) : $columns;
     }
 
-    protected function makeField($F) {
-        $core = [
+    protected function makeField($F, array $hints) {
+        $props = [
             'name' => $F->name,
             'table' => $F->table,
             'schema' => $F->db,
@@ -537,23 +541,30 @@ class Compiler extends SqlCompiler {
         ];
         switch (true) {
         case $F->flags & 512:
-            return new Fields\AutoIdField($core);
+            $class = Fields\AutoIdField::class;
             break;
         case in_array($F->type, [1, 2, 3, 8, 9]):
-            return new Fields\IntegerField($core + [
+            $class = Fields\IntegerField::class;
+            $props += [
                 'unsigned' => ($F->flags & 32) == 32,
-            ]);
+            ];
             break;
         case in_array($F->type, [12, 10, 7]):
-            return new Fields\DatetimeField($core);
+            $class = Fields\DatetimeField::class;
             break;
         case in_array($F->type, [252, 253, 254]):
         default:
-            return new Fields\TextField($core + [
+            $class = Fields\TextField::class;
+            $props += [
                 'binary' => ($F->flags & 128) == 128,
                 'blob' => ($F->flags & 16) == 16,
-            ]);
+            ];
         }
+
+        if (isset($hints[$props['name']]))
+            $class = $hints[$props['name']];
+        
+        return new $class($props);
     }
 
     function compileCreate($modelClass, $fields, $constraints=array()) {

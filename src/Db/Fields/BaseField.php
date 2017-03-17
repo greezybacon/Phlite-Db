@@ -37,6 +37,16 @@ abstract class BaseField {
         return $value;
     }
 
+    /**
+     * Get a presentation of the field value to use in a join constraint. 
+     * Normally this is just the field name itself, but some more complex 
+     * fields might need to utilize a database function or something to get
+     * a correct value for joins.
+     */
+    function getJoinConstraint($field_name, $table, Backend $backend) {
+        return sprintf("%s.%s", $table, $backend->quote($field_name));
+    }
+
     function getConstraints($name) {
         $constraints = [];
         if (isset($this->unique) && $this->unique)

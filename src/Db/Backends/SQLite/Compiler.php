@@ -32,8 +32,10 @@ extends Db\Backends\MySQL\Compiler {
         return new Statement($sql, $this->params);
     }
 
-    function inspectTable($table, $details=false, $cacheable=true) {
+    function inspectTable($meta, $details=false, $cacheable=true) {
         static $cache = array();
+        $table = $meta['table'];
+        $hints = $meta['field_types'];
 
         // XXX: Assuming schema is not changing — add support to track
         //      current schema
@@ -43,7 +45,10 @@ extends Db\Backends\MySQL\Compiler {
         $stmt = new Statement('SELECT * FROM "'.$table.'" WHERE 1=0');
         $driv = $this->conn->getDriver($stmt);
         $driv->execute();
-        $columns = $driv->getColumnNames();
+        if ($details)
+            $columns = $driv->getFieldTypes();
+        else
+            $columns = $driv->getColumnNames();
 
         return $cacheable ? ($cache[$table] = $columns) : $columns;
     }

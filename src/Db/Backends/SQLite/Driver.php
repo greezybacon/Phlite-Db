@@ -134,4 +134,38 @@ implements SqlDriver {
 
         return $cols;
     }
+
+    function getFieldTypes() {
+        $cols = array();
+        if (!isset($this->cursor))
+            return $cols;
+        
+        $types = array(
+            SQLITE3_INTEGER => Fields\IntegerField::class,
+            #SQLITE3_FLOAT => Fields\FloatField::class,
+            SQLITE3_TEXT => Fields\TextField::class,
+            SQLITE3_BLOB => Fields\TextField::class,
+        );
+
+        $count = $this->cursor->numColumns();
+        for ($i = 0; $i < $count; $i++) {
+            $props = [
+                'name' => $this->cursor->columnName($i),
+            ];
+            switch ($this->cursor->columnType($i)) {
+            case SQLITE3_BLOB:
+                $props['blob'] = true;
+                break;
+            }
+
+            $name = $this->cursor->columnName($i);
+            if (isset($hints[$name]))
+                $class = $hints[$name];
+            else
+                $class = $types[$this->cursor->columnType($i)];
+            $cols[$name] = new $class($props);
+        }
+
+        return $cols;
+    }
 }

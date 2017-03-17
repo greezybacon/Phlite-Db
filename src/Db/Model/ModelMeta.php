@@ -273,6 +273,11 @@ implements \ArrayAccess {
         return $this->fields;
     }
 
+    function getField($name) {
+        $fields = $this->getFields();
+        return $fields[$name];
+    }
+
     /**
      * Fetch the column names of the table used to persist instances of this
      * model in the database.
@@ -348,7 +353,7 @@ implements \ArrayAccess {
             }
         }
         $backend = Manager::getBackend($this);
-        $fields = $backend->getCompiler()->inspectTable($this['table']);
+        $fields = $backend->getCompiler()->inspectTable($this, true);
         if (isset($key) && $fields) {
             apcu_store($key, $fields, 1800);
         }

@@ -19,12 +19,14 @@ extends Db\Compile\DdlCompiler {
             return AutoIdField::wrap($field);
         case $field instanceof Db\Fields\IntegerField:
             return IntegerField::wrap($field);
+        case $field instanceof Db\Fields\DateTimeField:
+        case $field instanceof Db\Fields\TimestampField:
         case $field instanceof Db\Fields\TextField:
             return TextField::wrap($field);
         case $field instanceof Db\Fields\BlobField:
             return BlobField::wrap($field);
         default:
-            throw new Exception();
+            throw new \Exception();
         }
     }
 
