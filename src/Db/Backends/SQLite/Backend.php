@@ -73,6 +73,10 @@ class Backend extends Db\Backend {
         //       charset setting
     }
 
+    function close() {
+        $this->cnxn->close();
+    }
+
     function escape($what) {
         return $this->cnxn->escapeString($what);
     }

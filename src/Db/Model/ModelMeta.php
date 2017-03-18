@@ -122,6 +122,9 @@ implements \ArrayAccess {
         array_pop($namespace);
         $meta['namespace'] = implode('\\', $namespace);
 
+        // Capture the backend
+        $meta['bk'] = Manager::getBackend($this->model);
+
         return $meta;
     }
 
@@ -336,10 +339,8 @@ implements \ArrayAccess {
         $interpret = array_fill_keys($fieldnames, 1);
         foreach ($this->getFields() as $name=>$field) {
             if (isset($props[$name]) && isset($interpret[$name])) {
-                if ($from_db)
-                    $props[$name] = $field->to_php($props[$name]);
-                else
-                    $props[$name] = $field->to_database($props[$name]);
+                $props[$name] = $field->to_php($props[$name],
+                    $this->meta['bk']);
             }
         }
         return $props;

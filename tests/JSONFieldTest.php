@@ -11,7 +11,8 @@ extends Db\Model\ModelBase {
         'pk' => ['id'],
         'field_types' => [
             'props' => Db\Fields\JSONField::class,
-        ]
+        ],
+        'interpret' => ['props'],
     ];
 }
 
@@ -53,6 +54,10 @@ extends \PHPUnit_Framework_TestCase {
         Db\Manager::migrate(new CreateModels());
     }
 
+    static function tearDownAfterClass() {
+        Db\Manager::removeConnection('default');
+    }
+
     function testJSONCreate() {
         $user = new User([
             'name' => 'John Doe',
@@ -64,7 +69,6 @@ extends \PHPUnit_Framework_TestCase {
     }
 
     function testJSONFetch() {
-        var_dump(User::getMeta()->getFields());
         $user = User::lookup(['username' => 'jdoe']);
         $this->assertInternalType('array', $user->props);
     }

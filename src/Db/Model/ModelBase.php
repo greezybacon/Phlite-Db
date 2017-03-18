@@ -23,8 +23,7 @@ abstract class ModelBase {
     function __construct(array $row=array()) {
         $this->__new__ = true;
         foreach ($row as $field=>$value)
-            if (!is_array($value))
-                $this->set($field, $value);
+            $this->set($field, $value);
     }
 
     function get($field, $default=false) {
@@ -169,10 +168,10 @@ abstract class ModelBase {
             $field = $j['local'];
         }
         // elseif $field is in a relationship, adjust the relationship
-        elseif (isset(static::$meta['foreign_keys'][$field])) {
+        elseif (($fks = static::getMeta('foreign_keys')) && isset($fks[$field])) {
             // meta->foreign_keys->{$field} points to the property of the
             // foreign object. For instance 'object_id' points to 'object'
-            $related = static::$meta['foreign_keys'][$field];
+            $related = $fks[$field];
         }
         $old = isset($this->__ht__[$field]) ? $this->__ht__[$field] : null;
         if ($old != $value) {

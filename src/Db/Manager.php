@@ -31,6 +31,12 @@ class Manager {
         $this->backends[$key] = new $backendClass($info);
     }
 
+    protected function removeConnection($key) {
+        $bk = $this->backends[$key];
+        $bk->close();
+        unset($this->backends[$key]);
+    }
+
     /**
      * tryAddConnection
      *

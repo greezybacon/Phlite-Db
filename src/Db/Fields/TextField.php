@@ -7,6 +7,11 @@ use Phlite\Text;
 
 class TextField
 extends BaseField {
+    static $defaults = array(
+        'charset' => false,
+        'collation' => false,
+    );
+
     function __construct(array $options=array()) {
         parent::__construct($options);
         if (!isset($this->length))

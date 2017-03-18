@@ -14,6 +14,8 @@ abstract class Backend {
 
     abstract function connect();
 
+    function close() {}
+
     /**
      * Gets a compiler compatible with this database engine that can compile
      * and execute a queryset or DML request.

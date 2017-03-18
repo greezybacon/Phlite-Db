@@ -3,7 +3,6 @@ namespace Phlite\Db\Backends\SQLite;
 
 use Phlite\Db;
 use Phlite\Db\Compile\Statement;
-use Phlite\Db\Fields;
 use Phlite\Db\Model;
 
 class Compiler
@@ -23,9 +22,16 @@ extends Db\Backends\MySQL\Compiler {
     // SQLite doesn't support the INSERT INTO ... SET like MySQL does
     function compileInsert(Model\ModelBase $model) {
         $pk = $model::getMeta('pk');
+        $interpret = $model::getMeta('interpret');
         $fields = array();
-        foreach ($model->__dirty__ as $field=>$old)
-            $fields[$this->quote($field)] = $this->input($model->get($field));
+        foreach ($model->__dirty__ as $field=>$old) {
+            $val = $model->get($field);
+            if ($interpret && in_array($field, $interpret))
+                $val =
+                    $model::getMeta()->getField($field)->to_database($val,
+                    $this->conn);
+            $fields[$this->quote($field)] = $this->input($val);
+        }
         $sql = 'INSERT INTO '.$this->quote($model::getMeta('table')).' ('
             . implode(', ', array_keys($fields)).') VALUES ('
             . implode(', ', $fields) . ')';
@@ -45,10 +51,20 @@ extends Db\Backends\MySQL\Compiler {
         $stmt = new Statement('SELECT * FROM "'.$table.'" WHERE 1=0');
         $driv = $this->conn->getDriver($stmt);
         $driv->execute();
-        if ($details)
-            $columns = $driv->getFieldTypes();
-        else
-            $columns = $driv->getColumnNames();
+        $columns = $driv->getColumnNames();
+        if ($details) {
+            foreach ($columns as $i=>$name) {
+                if (isset($hints[$name]))
+                    $class = $hints[$name];
+                else
+                    $class = Fields\AutoField::class;
+                $columns[$name] = new $class([
+                    'name' => $name,
+                    'table' => $table,
+                ]);
+                unset($columns[$i]);
+            }   
+        }
 
         return $cacheable ? ($cache[$table] = $columns) : $columns;
     }
@@ -66,7 +82,7 @@ extends Db\Backends\MySQL\Compiler {
 
     function getExtraCreateConstraints($modelClass, $fields) {
         foreach ($fields as $F) {
-            if ($F instanceof Fields\AutoIdField)
+            if ($F instanceof Db\Fields\AutoIdField)
                 // PRIMARY KEY is required with the auto-increment token and
                 // cannot be repeated
                 return [];

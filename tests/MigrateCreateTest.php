@@ -1,4 +1,6 @@
 <?php
+namespace Test\MigrateCreateTest;
+
 use Phlite\Db;
 
 class User
@@ -14,7 +16,7 @@ class CreateModels
 extends Db\Migrations\Migration {
     function getOperations() {
         return [
-            new Db\Migrations\CreateModel('User', [
+            new Db\Migrations\CreateModel(User::class, [
                 'id'        => new Db\Fields\AutoIdField(['pk' => true]),
                 'name'      => new Db\Fields\TextField(['length' => 64]),
                 'username'  => new Db\Fields\TextField(['length' => 32]),
@@ -24,7 +26,7 @@ extends Db\Migrations\Migration {
 }
 
 class CreateMigrateTest
-extends PHPUnit_Framework_TestCase {
+extends \PHPUnit_Framework_TestCase {
     static function setUpBeforeClass() {
         Db\Manager::addConnection([
             'BACKEND' => 'Phlite\Db\Backends\SQLite',
@@ -35,9 +37,10 @@ extends PHPUnit_Framework_TestCase {
     function testCreateModel() {
         Db\Manager::migrate(new CreateModels());
 
-        $this->assertContains('id', User::getMeta()->getFields());
-        $this->assertContains('name', User::getMeta()->getFields());
-        $this->assertContains('username', User::getMeta()->getFields());
+        $fields = User::getMeta()->getFields();
+        $this->assertArrayHasKey('id', $fields);
+        $this->assertArrayHasKey('name', $fields);
+        $this->assertArrayHasKey('username', $fields);
     }
 
     /**
@@ -55,7 +58,7 @@ extends PHPUnit_Framework_TestCase {
     function testUpdate() {
         // Dump cache to force a SELECT
         Db\Model\ModelInstanceManager::flushCache();
-        $this->assertInstanceOf('User',
+        $this->assertInstanceOf(User::class,
             $u = User::lookup(['username' => 'jodoe']));
         $u->name = 'John Doe, II';
         $this->assertTrue($u->save());
