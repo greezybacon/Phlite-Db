@@ -26,6 +26,16 @@ abstract class ModelBase {
             $this->set($field, $value);
     }
 
+    /**
+     * Creates a new instance of the model without calling the constructor.
+     * If the constructor is required, consider using the PHP `new` keyword.
+     * The instance returned from this method will not be considered *new*
+     * and will imply an UPDATE when sent to the database.
+     */
+    static function __hydrate($row=false) {
+        return static::getMeta()->newInstance($row);
+    }
+
     function get($field, $default=false) {
         if (array_key_exists($field, $this->__ht__))
             return $this->__ht__[$field];
@@ -41,7 +51,7 @@ abstract class ModelBase {
                     $fkey[$F ?: $_klas] = ($local[0] == "'")
                         ? trim($local, "'") : $this->ht[$local];
                 }
-                $v = $this->ht[$field] = new $j['broker'](
+                $v = $this->__ht__[$field] = new $j['broker'](
                     // Send Model, [Foriegn-Field => Local-Id]
                     array($class, $fkey)
                 );

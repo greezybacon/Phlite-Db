@@ -3,24 +3,28 @@
 namespace Phlite\Db\Model;
 
 class InstrumentedList
-extends ModelInstanceManager
+extends ModelResultSet
 implements \JsonSerializable {
     var $key;
+    var $queryset;
 
-    function __construct($fkey, $queryset=false) {
+    function __construct($fkey, $queryset=false,
+        $iterator=ModelInstanceManager::class
+    ) {
         list($model, $this->key) = $fkey;
         if (!$queryset) {
             $queryset = $model::objects()->filter($this->key);
             if ($related = $model::getMeta('select_related'))
                 $queryset->select_related($related);
         }
-        parent::__construct($queryset);
+        parent::__construct(new $iterator($queryset));
         $this->model = $model;
+        $this->queryset = $queryset;
     }
 
     function add($object, $at=false) {
         if (!$object || !$object instanceof $this->model)
-            throw new Exception(sprintf(
+            throw new \InvalidArgumentError(sprintf(
                 'Attempting to add invalid object to list. Expected <%s>, but got <%s>',
                 $this->model,
                 get_class($object)
@@ -33,9 +37,9 @@ implements \JsonSerializable {
             $object->save();
 
         if ($at !== false)
-            $this->cache[$at] = $object;
+            $this->storage[$at] = $object;
         else
-            $this->cache[] = $object;
+            $this->storage[] = $object;
 
         return $object;
     }
@@ -46,39 +50,57 @@ implements \JsonSerializable {
         else
             foreach ($this->key as $field=>$value)
                 $object->set($field, null);
-    }
-
-    function reset() {
-        $this->cache = array();
-        unset($this->resource);
+            // XXX: Seems like the object should be removed from ->storage
     }
 
     /**
      * Slight edit to the standard ::next() iteration method which will skip
      * deleted items.
      */
-    function next() {
-        do {
-            parent::next();
-        }
-        while ($this->valid() && $this->current()->__deleted__);
+    function getItetator() {
+        return new \CallbackFilterIterator(parent::getIterator(),
+            function($i) { return !$i->__deleted__; });
     }
 
     /**
      * Reduce the list to a subset using a simply key/value constraint. New
      * items added to the subset will have the constraint automatically
      * added to all new items.
+     *
+     * Parameters:
+     * $criteria - (<Traversable>) criteria by which this list will be
+     *    constrained and filtered.
+     * $evaluate - (<bool>) if set to TRUE, the criteria will be evaluated
+     *    without making any more trips to the database. NOTE this may yield
+     *    unexpected results if this list does not contain all the records
+     *    from the database which would be matched by another query.
      */
-    function window($constraint) {
+    function window($constraint, $evaluate=false) {
         $model = $this->model;
-        $fields = $model::getMeta('fields');
+        $fields = $model::getMeta()->getFieldNames();
         $key = $this->key;
         foreach ($constraint as $field=>$value) {
             if (!is_string($field) || false === in_array($field, $fields))
                 throw new OrmException('InstrumentedList windowing must be performed on local fields only');
             $key[$field] = $value;
         }
-        return new static(array($this->model, $key), $this->filter($constraint));
+        $list = new static(array($this->model, $key), $this->filter($constraint));
+        if ($evaluate)
+            $list->setCache($this->findAll($constraint));
+        return $list;
+    }
+
+    /**
+     * Disable database fetching on this list by providing a static list of
+     * objects. ::add() and ::remove() are still supported.
+     * XXX: Move this to a parent class?
+     */
+    function setCache(array $cache) {
+        if (count($this->storage) > 0)
+            throw new \Exception('Cache must be set before fetching records');
+        // Set cache and disable fetching
+        $this->reset();
+        $this->storage = $cache;
     }
 
     // Save all changes made to any list items
@@ -111,11 +133,11 @@ implements \JsonSerializable {
 
     function offsetUnset($a) {
         $this->fillTo($a);
-        $this->cache[$a]->delete();
+        $this->storage[$a]->delete();
     }
     function offsetSet($a, $b) {
         $this->fillTo($a);
-        $this->cache[$a]->delete();
+        $this->storage[$a]->delete();
         $this->add($b, $a);
     }
 

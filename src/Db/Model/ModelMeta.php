@@ -214,10 +214,10 @@ implements \ArrayAccess {
                     = is_array($foreign) ? $foreign : explode('.', $foreign);
             }
         }
-        if ($j['list'] && !isset($j['broker'])) {
+        if (isset($j['list']) && $j['list'] && !isset($j['broker'])) {
             $j['broker'] = __NAMESPACE__ . '\InstrumentedList';
         }
-        if ($j['broker'] && !class_exists($j['broker'])) {
+        if (isset($j['broker']) && $j['broker'] && !class_exists($j['broker'])) {
             throw new OrmException($j['broker'] . ': List broker does not exist');
         }
         foreach ($constraint as $local => $foreign) {

@@ -87,18 +87,12 @@ implements \IteratorAggregate {
         // Check the cache for the model instance first
         if (!($m = self::checkCache($modelClass, $fields))) {
             // Construct and cache the object
-            $m = $modelClass::$meta->newInstance($fields);
+            $m = $modelClass::__hydrate($fields);
             // XXX: defer may refer to fields not in this model
             $m->__deferred__ = $this->queryset->defer;
             $m->__onload();
             if ($cache)
                 $this->cache($m);
-        }
-        elseif (get_class($m) != $modelClass) {
-            // Change the class of the object to be returned to match what
-            // was expected
-            // TODO: Emit a warning?
-            $m = $modelClass::$meta->newInstance($m->ht);
         }
         // Wrap annotations in an AnnotatedModel
         if ($extras) {
@@ -167,11 +161,13 @@ implements \IteratorAggregate {
         $this->resource = $backend->getDriver($stmt);
         $this->resource->execute();
         $this->map = $this->resource->getMap();
-        $func = ($this->map) ? 'fetchRow' : 'fetchArray';
+        $func = array($this->resource, ($this->map) ? 'fetchRow' : 'fetchArray');
 
-        while ($row = $this->resource->{$func}()) {
+        while ($row = $func()) {
             $model = $this->buildModel($row);
             yield $model;
         }
+
+        $this->resource->close();
     }
 }

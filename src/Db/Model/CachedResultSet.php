@@ -6,34 +6,69 @@ use Phlite\Db\Manager;
 use Phlite\Util;
 
 class CachedResultSet
-extends ResultSet
+extends Util\ArrayObject
 implements \ArrayAccess, \Countable {
-    protected $cache;
-   
+    protected $inner;
+    protected $eoi = false;
+
     function __construct(\IteratorAggregate $iterator) {
-        parent::__construct($iterator);
-        $this->cache = new Util\ArrayObject();
+        $this->inner = $iterator->getIterator();
     }
 
     function fillTo($level) {
-        while (count($this->cache) < $level) {
-            if (!($next = $this->next()))
+        while (!$this->eoi && count($this->storage) < $level) {
+            if (!$this->inner->valid()) {
+                $this->eoi = true;
                 break;
-            $this->cache[] = $next;
+            }
+            $this->storage[] = $this->inner->current();
+            $this->inner->next();
         }
-    }
-
-    function getCache() {
-        return $this->cache;
     }
 
     function asArray() {
         $this->fillTo(PHP_INT_MAX);
-        return $this->cache;
+        return $this->getCache();
+    }
+
+    function getCache() {
+        return $this->storage;
+    }
+
+    function reset() {
+        $this->eoi = false;
+        $this->storage = array();
+        // XXX: Should the inner be recreated to refetch?
+        $this->inner->rewind();
+    }
+
+    function getIterator() {
+        $this->asArray();
+        return new \ArrayIterator($this->storage);
+    }
+
+    function offsetExists($offset) {
+        $this->fillTo($offset+1);
+        return count($this->storage) > $offset;
+    }
+    function offsetGet($offset) {
+        $this->fillTo($offset+1);
+        return $this->storage[$offset];
+    }
+    function offsetUnset($a) {
+        throw new \Exception(sprintf('%s: is read-only', get_class()));
+    }
+    function offsetSet($a, $b) {
+        throw new \Exception(sprintf('%s: is read-only', get_class()));
+    }
+
+    function count() {
+        $this->asArray();
+        return count($this->storage);
     }
 
     /**
-     * Sort the resultset list in place. This would be useful to change the
+     * Sort the instrumented list in place. This would be useful to change the
      * sorting order of the items in the list without fetching the list from
      * the database again.
      *
@@ -44,13 +79,12 @@ implements \ArrayAccess, \Countable {
      * $reverse - (bool) true if the list should be sorted descending
      *
      * Returns:
-     * This resultset list for chaining and inlining.
+     * This instrumented list for chaining and inlining.
      */
     function sort($key=false, $reverse=false) {
         // Fetch all records into the cache
         $this->asArray();
-        $this->cache->sort($key, $reverse);
-        return $this;
+        return parent::sort($key, $reverse);
     }
 
     /**
@@ -58,29 +92,6 @@ implements \ArrayAccess, \Countable {
      */
     function reverse() {
         $this->asArray();
-        $this->cache->reverse();
-        return $this;
-    }
-
-    // ArrayAccess interface
-    function offsetGet($offset) {
-        $this->fillTo($offset);
-        return $this->cache[$offset];
-    }
-    function offsetExists($offset) {
-        $this->fillTo($offset);
-        return $this->cache->offsetExists($offset);
-    }
-    function offsetSet($offset, $item) {
-        throw new \Exception('ResultSet is read-only');
-    }
-    function offsetUnset($offset) {
-        throw new \Exception('ResultSet is read-only');
-    }
-
-    // Countable interface
-    function count() {
-        $this->asArray();
-        return count($this->cache);
+        return parent::reverse();
     }
 }

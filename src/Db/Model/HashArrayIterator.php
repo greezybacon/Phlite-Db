@@ -2,17 +2,20 @@
 
 namespace Phlite\Db\Model;
 
-class HashArrayIterator extends ResultSet {
-    function fillTo($index) {
-        $this->prime();
-        while ($this->resource && $index >= count($this->cache)) {
-            if ($row = $this->resource->fetchArray()) {
-                $this->cache[] = $row;
-            } else {
-                $this->resource->close();
-                $this->resource = false;
-                break;
-            }
-        }
+class HashArrayIterator
+implements \IteratorAggregate {
+    var $queryset;
+    var $resource;
+
+    function __construct(QuerySet $queryset) {
+        $this->queryset = $queryset;
+    }
+
+    function getIterator() {
+        $this->resource = $this->queryset->getQuery();
+        while ($row = $this->resource->getArray())
+            return $row;
+
+        $this->resource->close();
     }
 }

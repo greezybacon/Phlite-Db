@@ -2,6 +2,7 @@
 namespace Test\JsonFieldTest;
 
 use Phlite\Db;
+use Phlite\Db\Fields;
 
 class User
 extends Db\Model\ModelBase {

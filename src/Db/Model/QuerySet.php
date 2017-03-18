@@ -121,11 +121,6 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
         return $this;
     }
 
-    function options($options) {
-        $this->options = array_merge($this->options, $options);
-        return $this;
-    }
-
     function getSortFields() {
         $ordering = $this->ordering;
         if (isset($this->extra['order_by']))
@@ -363,6 +358,19 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
         return $this;
     }
 
+    function options($options) {
+        // Make an array with $options as the only key
+        if (!is_array($options))
+            $options = array($options => 1);
+
+        $this->options = array_merge($this->options, $options);
+        return $this;
+    }
+
+    function hasOption($option) {
+        return isset($this->options[$option]);
+    }
+
     function union(QuerySet $other, $all=true) {
         // Values and values_list _must_ match for this to work
         if ($this->countSelectFields() != $other->countSelectFields())
@@ -410,6 +418,11 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
         unset($this->query);
     }
 
+    // Delegate other methods to the iterator
+    function __call($func, $args) {
+        return call_user_func_array(array($this->getIterator(), $func), $args);
+    }
+
     // IteratorAggregate interface
     function getIterator($iterator=false) {
         if (!isset($this->_iterator)) {
@@ -421,6 +434,9 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
                     $it = new ModelResultSet($it);
                 else
                     $it = new CachedResultSet($it);
+            }
+            else {
+                $it = $it->getIterator();
             }
             $this->_iterator = $it;
         }
@@ -485,27 +501,20 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
      * subquery to be used as a JOIN.
      */
     function asView() {
-        $unique = spl_object_hash($this);
-        $classname = "QueryView{$unique}";
-        $class = <<<EOF
-class {$classname} extends VerySimpleModel {
-    static \$meta = array(
-        'view' => true,
-    );
-    static \$queryset;
+        $that = $this;
+        return new class extends ModelBase {
+            static $meta = array(
+                'view' => true,
+            );
 
-    static function getQuery(\$compiler) {
-        return ' ('.static::\$queryset->getQuery().') ';
-    }
+            static function getQuery($compiler) {
+                return ' ('.$that->getQuery().') ';
+            }
 
-    static function getSqlAddParams(\$compiler) {
-        return static::\$queryset->toSql(\$compiler, self::\$queryset->model);
-    }
-}
-EOF;
-        eval($class); // Ugh
-        $classname::$queryset = $this;
-        return $classname;
+            static function getSqlAddParams($compiler) {
+                return $that->toSql($compiler, $that->model);
+            }
+        };
     }
 
     function serialize() {
