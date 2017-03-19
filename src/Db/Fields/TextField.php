@@ -1,5 +1,4 @@
 <?php
-
 namespace Phlite\Db\Fields;
 
 use Phlite\Db\Backend;
@@ -14,8 +13,8 @@ extends BaseField {
 
     function __construct(array $options=array()) {
         parent::__construct($options);
-        if (!isset($this->length))
-            throw new InvalidArgumentException('`length` is required for text fields');
+        if (false && !isset($this->length))
+            throw new \InvalidArgumentException('`length` is required for text fields');
     }
 
     function to_php($value, Backend $backend) {

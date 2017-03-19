@@ -36,10 +36,14 @@ implements SqlDriver {
         if (!isset($this->conn))
             $this->conn = $this->backend->getConnection();
 
-        if (!($this->dbstmt = $this->conn->prepare($this->stmt->sql)))
+        try {
+            $this->dbstmt = $this->conn->prepare($this->stmt->sql);
+        }
+        catch (\Exception $ex) {
             throw new Exception\InconsistentModel(
                 'Unable to prepare query: '.$this->conn->lastErrorMsg()
                 .': '.$this->stmt->sql);
+        }
 
         // TODO: Implement option to drop parameters
 

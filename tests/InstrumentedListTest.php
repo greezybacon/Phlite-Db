@@ -1,37 +1,35 @@
 <?php
-namespace Test\JsonFieldTest;
+namespace Test\InstrumentedListTest;
 
 use Phlite\Db;
 use Phlite\Db\Fields;
 use Phlite\Db\Migrations\Migration;
 
-class User
+abstract class TestModelBase
 extends Db\Model\ModelBase {
     use Db\Model\Ext\ActiveRecord;
+
     static $meta = [
-        'table' => 'user',
-        'pk' => ['id'],
-        'field_types' => [
-            'props' => Fields\JSONField::class,
-        ],
-        'interpret' => ['props'],
+        'label' => 'ilt',
+        'abstract' => true,
     ];
 }
 
-class EmailAddressMeta
-extends Db\Model\ModelMeta {
-    function build($model) {
-        User::getMeta()->addJoin('emails', [
-            'reverse' => 'EmailAddress.user',
-        ]);
-        return parent::build($model);
-    }
+class User
+extends TestModelBase {
+    static $meta = [
+        'table' => 'user',
+        'pk' => ['id'],
+        'joins' => [
+            'emails' => [
+                'reverse' => 'EmailAddress.user',
+            ]
+        ]
+    ];
 }
 
 class EmailAddress
-extends Db\Model\ModelBase {
-    use Db\Model\Ext\ActiveRecord;
-    static $metaclass = EmailAddressMeta::class;
+extends TestModelBase {
     static $meta = [
         'table' => 'email_addr',
         'pk' => ['id'],
@@ -51,17 +49,17 @@ extends Db\Migrations\Migration {
                 'id'        => new Fields\AutoIdField(['pk' => true]),
                 'name'      => new Fields\TextField(['length' => 64]),
                 'username'  => new Fields\TextField(['length' => 32]),
-                'props'     => new Fields\JSONField(['length' => 1000]),
             ]),
             new Db\Migrations\CreateModel(EmailAddress::class, [
                 'id'        => new Fields\AutoIdField(['pk' => true]),
+                'user_id'   => new Fields\IntegerField(['bits' => 32]),
                 'address'   => new Fields\TextField(['length' => 64]),
             ]),
         ];
     }
 }
 
-class JSONFieldTest
+class InstrumentedListTest
 extends \PHPUnit_Framework_TestCase {
     static function setUpBeforeClass() {
         Db\Manager::addConnection([
@@ -75,19 +73,35 @@ extends \PHPUnit_Framework_TestCase {
         Db\Manager::migrate(new CreateModels(), Migration::BACKWARDS);
         Db\Manager::removeConnection('default');
     }
-
-    function testJSONCreate() {
+    
+    function testAddData() {
         $user = new User([
             'name' => 'John Doe',
             'username' => 'jdoe',
-            'props' => array('age' => 33),
         ]);
         $this->assertTrue($user->save());
         $this->assertTrue($user->id !== null);
     }
 
-    function testJSONFetch() {
-        $user = User::lookup(['username' => 'jdoe']);
-        $this->assertInternalType('array', $user->props);
+    function testRelationWrite() {
+        $joe = User::objects()->first();
+        $joe->emails->add(new EmailAddress(['address' => 'joe@example.com']));
+        $this->assertTrue($joe->emails->saveAll());
+        $this->assertEquals(1, EmailAddress::objects()
+            ->filter(['address' => 'joe@example.com'])->count());
+
+        $joe = User::objects()->first();
+        $this->assertEquals(1, $joe->emails->count());
+    }
+
+    function testLazySelectRelated() {
+        $joe = EmailAddress::objects()->first();
+        $this->assertEquals($joe->user->username, 'jdoe');
+    }
+    
+    function testSelectRelated() {
+        $joe = EmailAddress::objects()->select_related('user')->first();
+        $this->assertArrayHasKey('user', $joe->__ht__);
+        $this->assertInstanceOf(User::class, $joe->user);
     }
 }

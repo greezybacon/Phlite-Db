@@ -2,6 +2,7 @@
 namespace Phlite\Db\Fields;
 
 use Phlite\Db\Backend;
+use Phlite\Db\Compile\SqlCompiler;
 
 abstract class BaseField {
     static $defaults = array(
@@ -43,8 +44,16 @@ abstract class BaseField {
      * fields might need to utilize a database function or something to get
      * a correct value for joins.
      */
-    function getJoinConstraint($field_name, $table, Backend $backend) {
-        return sprintf("%s.%s", $table, $backend->quote($field_name));
+    function getJoinConstraint($field_name, $table, SqlCompiler $compiler) {
+        return sprintf("%s.%s", $table, $compiler->quote($field_name));
+    }
+
+    /**
+     * Fetch a value from the local properties array (__ht__). Usually it is
+     * a simple array lookup.
+     */
+    function extractValue($name, $props) {
+        return $props[$name];
     }
 
     function getConstraints($name) {

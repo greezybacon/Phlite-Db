@@ -37,19 +37,23 @@ abstract class ModelBase {
     }
 
     function get($field, $default=false) {
-        if (array_key_exists($field, $this->__ht__))
+        if (array_key_exists($field, $this->__ht__)) {
             return $this->__ht__[$field];
+        }
         elseif (($joins = static::getMeta('joins')) && isset($joins[$field])) {
             $j = $joins[$field];
             // Support instrumented lists and such
             if (isset($j['list']) && $j['list']) {
                 $class = $j['fkey'][0];
-                $fkey = array();
+                $meta = static::getMeta();
                 // Localize the foreign key constraint
                 foreach ($j['constraint'] as $local=>$foreign) {
-                    list($_klas,$F) = $foreign;
+                    list($_klas, $F) = $foreign;
+                    // Split by colons for complex field name expressions
+                    list($fname, ) = explode(':', $local, 2);
                     $fkey[$F ?: $_klas] = ($local[0] == "'")
-                        ? trim($local, "'") : $this->ht[$local];
+                        ? trim($local, "'")
+                        : $meta->getField($fname)->extractValue($local, $this->__ht__);
                 }
                 $v = $this->__ht__[$field] = new $j['broker'](
                     // Send Model, [Foriegn-Field => Local-Id]
@@ -61,9 +65,7 @@ abstract class ModelBase {
             elseif (isset($j['fkey'])) {
                 $criteria = array();
                 foreach ($j['constraint'] as $local => $foreign) {
-                    list($klas,$F) = $foreign;
-                    if (class_exists($klas))
-                        $class = $klas;
+                    list(, $F) = $foreign;
                     if ($local[0] == "'") {
                         $criteria[$F] = trim($local,"'");
                     }
@@ -79,6 +81,7 @@ abstract class ModelBase {
                     }
                 }
                 try {
+                    $class = $j['fkey'][0];
                     $v = $this->__ht__[$field] = $class::lookup($criteria);
                 }
                 catch (Exception\DoesNotExist $e) {
@@ -93,8 +96,10 @@ abstract class ModelBase {
                 // FIXME: Seems like all the deferred fields should be fetched
                 ->values_flat($field)
                 ->one();
-            if ($row)
-                return $this->__ht__[$field] = $row[0];
+            if (!$row)
+                throw new \RuntimeError(sprintf('%s: Unable to fetch deferred field', $field));
+            unset($this->__deferred__[$field]);
+            return $this->__ht__[$field] = $row[0];
         }
         elseif ($field == 'pk') {
             return $this->getPk();
@@ -171,7 +176,7 @@ abstract class ModelBase {
             }
             else
                 throw new \InvalidArgumentException(
-                    sprintf(__('Expecting NULL or instance of %s. Got a %s instead'),
+                    sprintf('Expecting NULL or instance of %s. Got a %s instead',
                     $j['fkey'][0], is_object($value) ? get_class($value) : gettype($value)));
 
             // Capture the foreign key id value
@@ -219,7 +224,7 @@ abstract class ModelBase {
 
     static function _inspect() {
         $mc = static::$metaclass;
-        static::$meta = new $mc(get_called_class());
+        static::$meta = new $mc(static::class);
 
         // Let the model participate
         static::__oninspect();

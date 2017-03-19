@@ -110,7 +110,6 @@ abstract class SqlCompiler {
      * $options - (array) extra options for the compiler
      *      'table' => return the table alias rather than the field-name
      *      'model' => return the target model class rather than the operator
-     *      'constraint' => extra constraint for join clause
      *
      * Returns:
      * (mixed) Usually array<field-name, operator> where field-name is the
@@ -157,13 +156,8 @@ abstract class SqlCompiler {
         }
 
         // Apply the joins list to $this->pushJoin
-        $last = count($joins) - 1;
-        $constraint = false;
         foreach ($joins as $i=>$A) {
-            // Add the conststraint as the last arg to the last join
-            if ($i == $last)
-                $constraint = $options['constraint'];
-            $alias = $this->pushJoin($A[0], $A[1], $A[2], $A[3], $constraint);
+            $alias = $this->pushJoin($A[0], $A[1], $A[2], $A[3]);
         }
 
         if (!isset($alias)) {
@@ -194,14 +188,14 @@ abstract class SqlCompiler {
      * algorithm is short-circuited and the originally-assigned table alias
      * is returned immediately.
      */
-    function pushJoin($tip, $path, $model, $info, $constraint=false) {
+    function pushJoin($tip, $path, $model, $info) {
         // TODO: Build the join statement fragment and return the table
         // alias. The table alias will be useful where the join is used in
         // the WHERE and ORDER BY clauses
 
         // If the join already exists for the statement-being-compiled, just
         // return the alias being used.
-        if (!$constraint && isset($this->joins[$path]))
+        if (isset($this->joins[$path]))
             return $this->joins[$path]['alias'];
 
         // TODO: Support only using aliases if necessary. Use actual table
@@ -224,7 +218,7 @@ abstract class SqlCompiler {
         // referenced in the ::compileJoin method if necessary.
         $T = array('alias' => $alias);
         $this->joins[$path] = $T;
-        $this->joins[$path]['sql'] = $this->compileJoin($tip, $model, $alias, $info, $constraint);
+        $this->joins[$path]['sql'] = $this->compileJoin($tip, $model, $alias, $info, null);
         return $alias;
     }
 

@@ -25,6 +25,7 @@ implements \ArrayAccess {
         'joins' => array(),
         'foreign_keys' => array(),
         // Table prefix to use. Useful to be inherited
+        'abstract' => false,
         'label' => '',
         // Use ->getFields() instances to interpret data to/from the
         // database. Can be TRUE or an array of field names.
@@ -49,10 +50,8 @@ implements \ArrayAccess {
 
         // Short circuit the meta-data processing if APCu is available.
         // This is preferred as the meta-data is unlikely to change unless
-        // osTicket is upgraded, (then the upgrader calls the
-        // flushModelCache method to clear this cache). Also, GIT_VERSION is
-        // used in the APC key which should be changed if new code is
-        // deployed.
+        // there is a change in the matrix.
+        // TODO: Ensure apc_key will change if a migration is necessary
         if (static::$use_cache && function_exists('apcu_store')) {
             $loaded = false;
             $this->apc_key = static::$secret . "meta/{$this->model}";
@@ -63,6 +62,13 @@ implements \ArrayAccess {
 
         // Build the meta data as usual
         $this->meta = $this->build($model);
+
+        // Break down foreign-key metadata
+        foreach ($this->meta['joins'] as $field => $j) {
+            $this->meta['joins'][$field] = $j = $this->buildJoin($j);
+            if ($j['local'])
+                $this->meta['foreign_keys'][$j['local']] = $field;
+        }
 
         if (isset($this->apc_key)) {
             apcu_store($this->apc_key, $this->meta, 1800);
@@ -84,13 +90,29 @@ implements \ArrayAccess {
         $meta = $model::$meta;
         if ($meta instanceof self)
             $meta = $meta->meta;
-        if (is_subclass_of($parent, __NAMESPACE__ . '\ModelBase')) {
+        if (is_subclass_of($parent, ModelBase::class)) {
             $this->parent = $parent::getMeta();
             $meta = $this->parent->extend($this, $meta);
         }
         else {
             $meta = $meta + self::$defaults;
         }
+
+        // Capture enclosing namespace
+        $namespace = explode('\\', $this->model);
+        array_pop($namespace);
+        $meta['namespace'] = implode('\\', $namespace);
+
+        // Ensure other supported fields are set and are arrays
+        foreach (array('pk', 'ordering', 'defer', 'select_related') as $f) {
+            if (!isset($meta[$f]))
+                $meta[$f] = array();
+            elseif (!is_array($meta[$f]))
+                $meta[$f] = array($meta[$f]);
+        }
+
+        if ($meta['abstract'])
+            return $meta;
 
         if (!$meta['view']) {
             if (!$meta['table'])
@@ -101,29 +123,11 @@ implements \ArrayAccess {
                     sprintf('%s: Model does not define meta.pk', $model));
         }
 
-        // Ensure other supported fields are set and are arrays
-        foreach (array('pk', 'ordering', 'defer', 'select_related') as $f) {
-            if (!isset($meta[$f]))
-                $meta[$f] = array();
-            elseif (!is_array($meta[$f]))
-                $meta[$f] = array($meta[$f]);
+        if ($meta['label']
+            && substr($meta['table'], 0, strlen($meta['label'])) !== $meta['label']
+        ) {
+            $meta['table'] = $meta['label'] . '_' . $meta['table'];
         }
-
-        // Break down foreign-key metadata
-        foreach ($meta['joins'] as $field => &$j) {
-            $this->processJoin($j);
-            if ($j['local'])
-                $meta['foreign_keys'][$j['local']] = $field;
-        }
-        unset($j);
-
-        // Capture enclosing namespace
-        $namespace = explode('\\', $this->model);
-        array_pop($namespace);
-        $meta['namespace'] = implode('\\', $namespace);
-
-        // Capture the backend
-        $meta['bk'] = Manager::getBackend($this->model);
 
         return $meta;
     }
@@ -183,7 +187,7 @@ implements \ArrayAccess {
      * 'local' => string
      *      The local field corresponding to the 'fkey' property
      */
-    function processJoin(&$j) {
+    function buildJoin($j) {
         $constraint = array();
         if (isset($j['reverse'])) {
             list($fmodel, $key) = explode('.', $j['reverse']);
@@ -209,37 +213,42 @@ implements \ArrayAccess {
                 $j['null'] = true;
         }
         else {
+            // Determine what the class of the foreign model is. Add the local
+            // namespace if it was implied.
             foreach ($j['constraint'] as $local => $foreign) {
                 list($class, $field) = $constraint[$local]
                     = is_array($foreign) ? $foreign : explode('.', $foreign);
+                if ($local[0] == "'" || $field[0] == "'")
+                    continue;
+                if (!class_exists($class) && strpos($class, '\\') === false) {
+                    // Transfer namespace from this model
+                    $class = $this->meta['namespace']. '\\' . $class;
+                    $constraint[$local] = $foreign = array($class, $field);
+                }
             }
         }
         if (isset($j['list']) && $j['list'] && !isset($j['broker'])) {
-            $j['broker'] = __NAMESPACE__ . '\InstrumentedList';
+            $j['broker'] = InstrumentedList::class;
         }
-        if (isset($j['broker']) && $j['broker'] && !class_exists($j['broker'])) {
-            throw new OrmException($j['broker'] . ': List broker does not exist');
+        if (isset($j['broker']) && !class_exists($j['broker'])) {
+            throw new Exception\ModelConfigurationError(sprintf(
+                '%s: List broker class does not exist', $j['broker']));
         }
         foreach ($constraint as $local => $foreign) {
             list($class, $field) = $foreign;
-            if (strpos($class, '\\') === false) {
-                // Transfer namespace from this model
-                $class = $this->meta['namespace']. '\\' . $class;
-                $j['constraint'][$local] = "$class.$field";
-            }
-            if ($local[0] == "'" || $field[0] == "'" || !class_exists($class))
+            if (!class_exists($class))
                 continue;
             $j['fkey'] = $foreign;
             $j['local'] = $local;
-            #if (!isset($j['list']))
-            #    $j['list'] = false;
+            if (!isset($j['list']))
+                $j['list'] = false;
         }
         $j['constraint'] = $constraint;
+        return $j;
     }
 
     function addJoin($name, array $join) {
-        $this->meta['joins'][$name] = $join;
-        $this->processJoin($this->meta['joins'][$name]);
+        $this->meta['joins'][$name] = $this->buildJoin($join);
     }
 
     /**
@@ -340,7 +349,7 @@ implements \ArrayAccess {
         foreach ($this->getFields() as $name=>$field) {
             if (isset($props[$name]) && isset($interpret[$name])) {
                 $props[$name] = $field->to_php($props[$name],
-                    $this->meta['bk']);
+                    Manager::getBackend($this));
             }
         }
         return $props;

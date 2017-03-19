@@ -142,7 +142,9 @@ class Compiler extends SqlCompiler {
         else
             $table = $this->quote($model::getMeta('table'));
         foreach ($info['constraint'] as $local => $foreign) {
-            list($lhs, $rhs) = $this->compileJoinConstraint($model, $local, $foreign, $table, $alias);
+            list($rmodel) = $foreign;
+            list($lhs, $rhs) = $this->compileJoinConstraint($model, $local, 
+                $foreign, $table, $alias);
             $constraints[] = "$lhs = $rhs";
         }
         // Support extra join constraints
@@ -286,7 +288,7 @@ class Compiler extends SqlCompiler {
             $theseFields = array();
             $defer = $queryset->defer ?: array();
             // Add local fields first
-            foreach ($model::getMeta('fields') as $f) {
+            foreach ($model::getMeta()->getFieldNames() as $f) {
                 // Handle deferreds
                 if (isset($defer[$f]))
                     continue;
@@ -308,7 +310,7 @@ class Compiler extends SqlCompiler {
                     $theseFields = array();
                     list($alias, $fmodel) = $this->getField($full_path, $model,
                         array('table'=>true, 'model'=>true));
-                    foreach ($fmodel::getMeta('fields') as $f) {
+                    foreach ($fmodel::getMeta()->getFieldNames() as $f) {
                         // Handle deferreds
                         if (isset($defer[$sr . '__' . $f]))
                             continue;
