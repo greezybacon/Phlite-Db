@@ -9,37 +9,108 @@ namespace Phlite\Db\Model;
  * will delegate most all of the heavy lifting to the wrapped Model instance.
  */
 class AnnotatedModel {
+    static function wrap(ModelBase $model, $extras=array(), $class=false) {
+        static $classes = array();
 
-    var $model;
-    var $annotations;
+        $fqclass = $class ?: get_class($model);
+        $class = $class ?: (new \ReflectionClass($model))->getShortName();
+        $extra = ($extras instanceof ModelBase) ? 'Writeable' : '';
+        $classname = "{$extra}AnnotatedModel___{$class}";
 
-    function __construct($model, $annotations) {
-        $this->model = $model;
-        $this->annotations = $annotations;
+        if (!isset($classes[$classname])) {
+            $namespace = __NAMESPACE__;
+            eval(<<<END_CLASS
+namespace {$namespace};
+class {$classname}
+extends \\{$fqclass} {
+    private \$__overlay__;
+    use {$extra}AnnotatedModelTrait;
+    
+    static \$meta = array();
+
+    static function __hydrate(\$ht=false, \$annotations=false) {
+        \$instance = parent::__hydrate(\$ht);
+        \$instance->__overlay__ = \$annotations;
+        return \$instance;
+    }    
+}
+END_CLASS
+            ); 
+            $classes[$classname] = 1;
+        }
+        $class = __NAMESPACE__ . '\\' . $classname;
+        var_dump('CLASS', $class);
+        return $class::__hydrate($model->__ht__, $extras);
+    }    
+}
+
+trait AnnotatedModelTrait {
+    function get($what, $default=false) {
+        if (isset($this->__overlay__[$what]))
+            return $this->__overlay__[$what];
+        return parent::get($what);
     }
 
-    function __get($what) {
-        return $this->get($what);
-    }
-    function get($what) {
-        if (isset($this->annotations[$what]))
-            return $this->annotations[$what];
-        return $this->model->get($what, null);
-    }
-    function __set($what, $to) {
-        return $this->set($what, $to);
-    }
     function set($what, $to) {
-        if (isset($this->annotations[$what]))
-            throw new Exception\OrmError('Annotated fields are read-only');
-        return $this->model->set($what, $to);
-    }
-    function __isset($what) {
-        return isset($this->annotations[$what]) || $this->model->__isset($what);
+        if (isset($this->__overlay__[$what]))
+            throw new Exception\OrmException('Annotated fields are read-only');
+        return parent::set($what, $to);
     }
 
-    // Delegate everything else to the model
-    function __call($what, $how) {
-        return call_user_func_array(array($this->model, $what), $how);
+    function __isset($what) {
+        if (isset($this->__overlay__[$what]))
+            return true;
+        return parent::__isset($what);
+    }
+
+    function getDbFields() {
+        return $this->__overlay__ + parent::getDbFields();
+    }
+}
+
+/**
+ * Slight variant on the AnnotatedModelTrait, except that the overlay is
+ * another model. Its fields are preferred over the wrapped model's fields.
+ * Updates to the overlayed fields are tracked in the overlay model and
+ * therefore kept separate from the annotated model's fields. ::save() will
+ * call save on both models. Delete will only delete the overlay model (that
+ * is, the annotated model will remain).
+ */
+trait WriteableAnnotatedModelTrait {
+    function get($what, $default=false) {
+        if ($this->__overlay__->__isset($what))
+            return $this->__overlay__->get($what);
+        return parent::get($what);
+    }
+
+    function set($what, $to) {
+        if (isset($this->__overlay__)
+            && $this->__overlay__->__isset($what)) {
+            return $this->__overlay__->set($what, $to);
+        }
+        return parent::set($what, $to);
+    }
+
+    function __isset($what) {
+        if (isset($this->__overlay__) && $this->__overlay__->__isset($what))
+            return true;
+        return parent::__isset($what);
+    }
+
+    function getDbFields() {
+        return $this->__overlay__->getDbFields() + parent::getDbFields();
+    }
+
+    function save($refetch=false) {
+        $this->__overlay__->save($refetch);
+        return parent::save($refetch);
+    }
+
+    function delete() {
+        if ($rv = $this->__overlay__->delete())
+            // Mark the annotated object as deleted, but don't drop the 
+            // related model
+            $this->__deleted__ = true;
+        return $rv;
     }
 }

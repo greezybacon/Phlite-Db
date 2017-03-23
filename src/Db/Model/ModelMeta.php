@@ -23,9 +23,11 @@ implements \ArrayAccess {
         'select_related' => array(),
         'view' => false,
         'joins' => array(),
+        'edges' => array(),
         'foreign_keys' => array(),
-        // Table prefix to use. Useful to be inherited
+        // If the model is used to hold meta data only
         'abstract' => false,
+        // Table prefix to use. Useful to be inherited
         'label' => '',
         // Use ->getFields() instances to interpret data to/from the
         // database. Can be TRUE or an array of field names.
@@ -62,11 +64,16 @@ implements \ArrayAccess {
 
         // Build the meta data as usual
         $this->meta = $this->build($model);
+        
+        // Break down edge (many-to-many) metadata to joins
+        foreach ($this->meta['edges'] as $field => $e) {
+            $this->meta['joins'][$field] = $this->getJoinInfoForEdge($e);
+        }
 
         // Break down foreign-key metadata
         foreach ($this->meta['joins'] as $field => $j) {
             $this->meta['joins'][$field] = $j = $this->buildJoin($j);
-            if ($j['local'])
+            if (isset($j['local']))
                 $this->meta['foreign_keys'][$j['local']] = $field;
         }
 
@@ -99,9 +106,7 @@ implements \ArrayAccess {
         }
 
         // Capture enclosing namespace
-        $namespace = explode('\\', $this->model);
-        array_pop($namespace);
-        $meta['namespace'] = implode('\\', $namespace);
+        $meta['namespace'] = (new \ReflectionClass($this->model))->getNamespaceName();
 
         // Ensure other supported fields are set and are arrays
         foreach (array('pk', 'ordering', 'defer', 'select_related') as $f) {
@@ -142,7 +147,7 @@ implements \ArrayAccess {
         $this->subclasses[$child->model] = $child;
         // Merge 'joins' settings (instead of replacing)
         if (isset($this->meta['joins'])) {
-            $meta['joins'] = array_merge($meta['joins'] ?: array(),
+            $meta['joins'] = array_merge(@$meta['joins'] ?: array(),
                 $this->meta['joins']);
         }
         return $meta + $this->meta + $child::$defaults + self::$defaults;
@@ -186,6 +191,10 @@ implements \ArrayAccess {
      *      points to a PK field of a foreign model
      * 'local' => string
      *      The local field corresponding to the 'fkey' property
+     * 'through' => [relationship, ModelBase::class]
+     *      The information for the rest of the edge. The join info will
+     *      have information to get the intermediate models. This has the
+     *      relation from the intermediate models to the target model.
      */
     function buildJoin($j) {
         $constraint = array();
@@ -212,7 +221,7 @@ implements \ArrayAccess {
                 // By default, reverse releationships can be empty lists
                 $j['null'] = true;
         }
-        else {
+        elseif (isset($j['constraint'])) {
             // Determine what the class of the foreign model is. Add the local
             // namespace if it was implied.
             foreach ($j['constraint'] as $local => $foreign) {
@@ -244,11 +253,49 @@ implements \ArrayAccess {
                 $j['list'] = false;
         }
         $j['constraint'] = $constraint;
+        
         return $j;
     }
 
     function addJoin($name, array $join) {
         $this->meta['joins'][$name] = $this->buildJoin($join);
+    }
+    
+    function getJoinInfoForEdge(array $edge) {
+        // Simplistic configuration -> specify 'target' and 'through' models
+        $join = [
+            'broker' => InstrumentedEdges::class,
+        ];
+        if (isset($edge['target']) && isset($edge['through'])) {
+            if (!class_exists($edge['target']))
+                throw new Exception\ModelConfigurationError(sprintf(
+                    '%s: Target model for edge does not exist', $edge['target']));
+            if (!class_exists($edge['through']))
+                throw new Exception\ModelConfigurationError(sprintf(
+                    '%s: Intermediate model for edge does not exist', $edge['through']));
+            
+            // For this configuration, the `through` model is inspected for 
+            // a relationship to reverse
+            foreach ($edge['through']::getMeta('joins') as $field=>$info) {
+                list($class, $pk) = $info['fkey'];
+                if ($class === $this->model) {
+                    $join['reverse'] = sprintf("%s.%s", $edge['through'], $field);
+                    break;
+                }
+            }
+            
+            // The join information should have a `through` field which has 
+            // the intermediate model and the relation between it and the 
+            // target model.
+            foreach ($edge['through']::getMeta('joins') as $field=>$info) {
+                list($class, $pk) = $info['fkey'];
+                if ($class === $edge['target']) {
+                    $join['through'] = [$field, $edge['target']];
+                    break;
+                }
+            }    
+        }
+        return $join;
     }
 
     /**

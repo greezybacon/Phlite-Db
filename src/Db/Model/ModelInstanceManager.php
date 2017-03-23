@@ -96,7 +96,7 @@ implements \IteratorAggregate {
         }
         // Wrap annotations in an AnnotatedModel
         if ($extras) {
-            $m = new AnnotatedModel($m, $extras);
+            $m = AnnotatedModel::wrap($m, $extras);
         }
         // TODO: If the model has deferred fields which are in $fields,
         // those can be resolved here

@@ -24,12 +24,11 @@ implements \JsonSerializable {
 
     function add($object, $at=false) {
         if (!$object || !$object instanceof $this->model)
-            throw new \InvalidArgumentError(sprintf(
+            throw new \InvalidArgumentException(sprintf(
                 'Attempting to add invalid object to list. Expected <%s>, but got <%s>',
                 $this->model,
                 get_class($object)
             ));
-
         foreach ($this->key as $field=>$value)
             $object->set($field, $value);
 
@@ -57,7 +56,7 @@ implements \JsonSerializable {
      * Slight edit to the standard ::next() iteration method which will skip
      * deleted items.
      */
-    function getItetator() {
+    function getIterator() {
         return new \CallbackFilterIterator(parent::getIterator(),
             function($i) { return !$i->__deleted__; });
     }

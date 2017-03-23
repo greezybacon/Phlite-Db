@@ -56,8 +56,8 @@ abstract class ModelBase {
                         : $meta->getField($fname)->extractValue($local, $this->__ht__);
                 }
                 $v = $this->__ht__[$field] = new $j['broker'](
-                    // Send Model, [Foriegn-Field => Local-Id]
-                    array($class, $fkey)
+                    // Send [ForeignModel, [Foriegn-Field => Local-Id], JoinInfo]
+                    array($class, $fkey, $j)
                 );
                 return $v;
             }
@@ -134,8 +134,15 @@ abstract class ModelBase {
     }
 
     function __isset($field) {
-        return array_key_exists($field, $this->__ht__)
-            || isset(static::$meta['joins'][$field]);
+        if (array_key_exists($field, $this->__ht__))
+            return true;
+        
+        $meta = static::getMeta();
+        if (isset($meta['joins'][$field])
+            || isset(static::$meta->getFields()[$field])
+        ) {
+            return true;
+        }
     }
     function __unset($field) {
         if ($this->__isset($field))
