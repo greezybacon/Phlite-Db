@@ -59,8 +59,8 @@ trait ActiveRecord {
         // another *new* object, then save those objects first and set the
         // local foreign key field values
         foreach (static::getMeta('joins') as $prop => $j) {
-            if (isset($this->ht[$prop])
-                && ($foreign = $this->ht[$prop])
+            if (isset($this->__ht__[$prop])
+                && ($foreign = $this->__ht__[$prop])
                 && $foreign instanceof VerySimpleModel
                 && !in_array($j['local'], $pk)
                 && null === $this->get($j['local'])
@@ -101,7 +101,7 @@ trait ActiveRecord {
             if (count($pk) === 1 && !$refetch) {
                 $key = $pk[0];
                 $id = $ex->insert_id();
-                if (!isset($this->{$key}) && $id)
+                if (!isset($this->__ht__[$key]) && $id)
                     $this->__ht__[$key] = $id;
             }
             $this->__new__ = false;
@@ -122,8 +122,8 @@ trait ActiveRecord {
             // Attempt to update foreign, unsaved objects with the PK of
             // this newly created object
             foreach (static::getMeta('joins') as $prop => $j) {
-                if (isset($this->ht[$prop])
-                    && ($foreign = $this->ht[$prop])
+                if (isset($this->__ht__[$prop])
+                    && ($foreign = $this->__ht__[$prop])
                     && in_array($j['local'], $pk)
                 ) {
                     if ($foreign instanceof Model\ModelBase
@@ -139,6 +139,10 @@ trait ActiveRecord {
                     }
                 }
             }
+
+            // Cache the object so lookups will return this one rather than
+            // a copy
+            Model\ModelInstanceManager::cache($this);
         }
         $this->__dirty__ = array();
         return true;

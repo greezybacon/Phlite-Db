@@ -97,14 +97,14 @@ extends \PHPUnit_Framework_TestCase {
     
     function testCreateSomeData() {
         $p1 = new Publication(['title'=>'The PHP Journal']);
-        $p1->save();
+        $this->assertTrue($p1->save());
         $p2 = new Publication(['title'=>'Science News']);
-        $p2->save();
+        $this->assertTrue($p2->save());
         $p3 = new Publication(['title'=>'Science Weekly']);
-        $p3->save();
+        $this->assertTrue($p3->save());
         
         $a1 = new Article(['headline'=>'Phlite lets you build databases easily']);
-        $a1->save();
+        $this->assertTrue($a1->save());
     }
     
     function testPopulateEdge() {
@@ -118,10 +118,13 @@ extends \PHPUnit_Framework_TestCase {
         $this->assertTrue($edge->save());
         
         // Add a published date
-        $edge->date_published = new \DateTime();
+        $now = new \DateTime();
+        $edge->date_published = $now;
         $this->assertTrue($edge->save());
         
-        var_dump($edge);
-        var_dump(Article::objects()->first()->publications[0]);
+        // Verify the other end of the chain
+        $this->assertEquals($a1->publications->count(), 1);
+        $this->assertEquals($a1->publications[0]->title, 'The PHP Journal');
+        $this->assertEquals($a1->publications[0]->date_published, $now);
     }
 }

@@ -36,7 +36,7 @@ abstract class ModelBase {
         return static::getMeta()->newInstance($row);
     }
 
-    function get($field, $default=false) {
+    function get($field, $default=null) {
         if (array_key_exists($field, $this->__ht__)) {
             return $this->__ht__[$field];
         }
@@ -113,7 +113,7 @@ abstract class ModelBase {
             return null;
 
         // Check to see if the column referenced is actually valid
-        if (in_array($field, static::getMeta('fields')))
+        if (in_array($field, static::getMeta()->getFieldNames()))
             return null;
 
         throw new Exception\OrmError(sprintf('%s: %s: Field not defined',
@@ -189,7 +189,7 @@ abstract class ModelBase {
             // Capture the foreign key id value
             $field = $j['local'];
         }
-        // elseif $field is in a relationship, adjust the relationship
+        // elseif $field is part of a relationship, adjust the relationship
         elseif (($fks = static::getMeta('foreign_keys')) && isset($fks[$field])) {
             // meta->foreign_keys->{$field} points to the property of the
             // foreign object. For instance 'object_id' points to 'object'
@@ -237,11 +237,11 @@ abstract class ModelBase {
         static::__oninspect();
     }
 
-    static function getMeta($key=false) {
+    static function getMeta($key=null) {
         if (!static::$meta instanceof static::$metaclass)
             static::_inspect();
         $M = static::$meta;
-        return ($key) ? $M->offsetGet($key) : $M;
+        return isset($key) ? $M->offsetGet($key) : $M;
     }
 
     /**
@@ -307,7 +307,7 @@ abstract class ModelBase {
 
     private function getPk() {
         $pk = array();
-        foreach ($this::getMeta('pk') as $f)
+        foreach (static::getMeta('pk') as $f)
             $pk[$f] = $this->__ht__[$f];
         return $pk;
     }

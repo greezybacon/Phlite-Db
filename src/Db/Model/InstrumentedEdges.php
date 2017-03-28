@@ -3,10 +3,21 @@ namespace Phlite\Db\Model;
 
 class EdgeModelInstanceManager
 extends ModelInstanceManager {
+    protected $relation;
+    protected $middleModel;
+
+    function __construct($qs, $glueClass, $relation) {
+        parent::__construct($qs);
+        $this->relation = $relation;
+        $this->middleModel = $glueClass;
+    }
+
     function getOrBuild($modelClass, $fields, $cache=true) {
         $m = parent::getOrBuild($modelClass, $fields, $cache);
-        if ($m) {
-            $m = AnnotatedModel::wrap($m->{$this->relation}, $m, $this->targetModel);
+        if ($m && $modelClass == $this->middleModel) {
+            if (is_bool($m->get($this->relation)))
+                throw new \Exception();
+            $m = AnnotatedModel::wrap($m->get($this->relation), $m);
         }
         return $m;
     }
@@ -14,15 +25,17 @@ extends ModelInstanceManager {
 
 class InstrumentedEdges
 extends InstrumentedList {
-    var $targetModel;
     var $relation;
 
     function __construct($fkey, $queryset=false,
         $iterator=EdgeModelInstanceManager::class
     ) {
-        parent::__construct($fkey, $queryset, $iterator);
-        list(, , $join) = $fkey;
-        list($this->relation, $this->targetModel) = $join['through'];
+        list($middleModel, , $join) = $fkey;
+        list($this->relation, ) = $join['through'];
+        parent::__construct($fkey, $queryset, 
+        function($queryset) use ($iterator, $middleModel) {
+            return new $iterator($queryset, $middleModel, $this->relation);
+        });
         $this->queryset = $this->queryset->select_related($this->relation);
     }
     

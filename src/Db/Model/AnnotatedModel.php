@@ -17,29 +17,33 @@ class AnnotatedModel {
         $extra = ($extras instanceof ModelBase) ? 'Writeable' : '';
         $classname = "{$extra}AnnotatedModel___{$class}";
 
+        // XXX: Would be super nice to return an anonymous class, but that
+        //      might imply a metadata inspection for each instance, and
+        //      an anonymous class cannot extend another class defined by
+        //      a variable (return new class extends $parentClass {})
+
         if (!isset($classes[$classname])) {
             $namespace = __NAMESPACE__;
-            eval(<<<END_CLASS
+            $q = <<<END_CLASS
 namespace {$namespace};
 class {$classname}
 extends \\{$fqclass} {
     private \$__overlay__;
     use {$extra}AnnotatedModelTrait;
-    
+
     static \$meta = array();
 
     static function __hydrate(\$ht=false, \$annotations=false) {
         \$instance = parent::__hydrate(\$ht);
         \$instance->__overlay__ = \$annotations;
         return \$instance;
-    }    
+    }
 }
-END_CLASS
-            ); 
+END_CLASS;
+            eval($q);
             $classes[$classname] = 1;
         }
         $class = __NAMESPACE__ . '\\' . $classname;
-        var_dump('CLASS', $class);
         return $class::__hydrate($model->__ht__, $extras);
     }    
 }

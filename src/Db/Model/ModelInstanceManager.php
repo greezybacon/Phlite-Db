@@ -18,7 +18,7 @@ implements \IteratorAggregate {
         $this->model = $queryset->model;
     }
 
-    function cache($model) {
+    static function cache(ModelBase $model) {
         $key = sprintf('%s.%s',
             $model::$meta->model, implode('.', $model->get('pk')));
         self::$objectCache[$key] = $model;
@@ -31,7 +31,7 @@ implements \IteratorAggregate {
      * database-side. Lookups for the same model should not be short
      * circuited to retrieve the cached reference.
      */
-    static function uncache($model) {
+    static function uncache(ModelBase $model) {
         $key = sprintf('%s.%s',
             $model::$meta->model, implode('.', $model->pk));
         unset(self::$objectCache[$key]);
@@ -92,7 +92,7 @@ implements \IteratorAggregate {
             $m->__deferred__ = $this->queryset->defer;
             $m->__onload();
             if ($cache)
-                $this->cache($m);
+                static::cache($m);
         }
         // Wrap annotations in an AnnotatedModel
         if ($extras) {

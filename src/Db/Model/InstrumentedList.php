@@ -17,7 +17,9 @@ implements \JsonSerializable {
             if ($related = $model::getMeta('select_related'))
                 $queryset->select_related($related);
         }
-        parent::__construct(new $iterator($queryset));
+        $iterator = is_callable($iterator)
+            ? $iterator($queryset) : new $iterator($queryset);
+        parent::__construct($iterator);
         $this->model = $model;
         $this->queryset = $queryset;
     }
