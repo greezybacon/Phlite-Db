@@ -1,9 +1,5 @@
 <?php
-
 namespace Phlite\Db\Fields;
-
-use Phlite\Db\Backend;
-use Phlite\Text;
 
 class DateTimeField
 extends TextField {

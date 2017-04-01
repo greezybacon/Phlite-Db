@@ -90,6 +90,11 @@ extends IntegerField {
     }
 }
 
+class RealField 
+extends BaseField {
+    function getAffinity() { return 'REAL'; }
+}
+
 class BlobField 
 extends BaseField {
     function getAffinity() { return 'BLOB'; }
