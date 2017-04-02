@@ -43,11 +43,21 @@ extends FileReader {
             $this->header = $this->file->fgetcsv();
 
         $row = $this->file->fgetcsv();
-        var_dump($this->header, $row);
-        return array_combine($this->header, $row);
+        if (!$row || $row[0] === null)
+            return null;
+
+        try {
+            $row = array_combine($this->header, $row);
+        } catch (\Exception $x) {
+            var_dump($row);
+            throw $x; 
+        }
+        $row = $this->fromExport($row, $this->model->getFields());
+        return $row;
     }
 
     function makeModel(array $record) {
-        return $this->model->newInstance($record);
+        $class = $this->model->model;
+        return new $class($record);
     }
 }

@@ -29,7 +29,7 @@
     },
 
     "autoload": {
-        "classmap": ["src/"],
+        "classmap": ["src/", "tests/Northwind"],
         "psr-4": {"Phlite\\": "src/"}
     }
 }

@@ -19,14 +19,19 @@ extends Db\Compile\DdlCompiler {
             return AutoIdField::wrap($field);
         case $field instanceof Db\Fields\IntegerField:
             return IntegerField::wrap($field);
+        case $field instanceof Db\Fields\DecimalField:
+        case $field instanceof Db\Fields\TimestampField:
+            return RealField::wrap($field);
         case $field instanceof Db\Fields\DateTimeField:
         case $field instanceof Db\Fields\TimestampField:
         case $field instanceof Db\Fields\TextField:
             return TextField::wrap($field);
         case $field instanceof Db\Fields\BlobField:
+        case $field instanceof Db\Fields\BinaryField:
             return BlobField::wrap($field);
         default:
-            throw new \Exception();
+            throw new \Exception(sprintf('%s: Unexpected or unsupported field type',
+            get_class($field)));
         }
     }
 

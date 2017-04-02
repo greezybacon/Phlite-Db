@@ -40,6 +40,24 @@ abstract class BaseField {
     }
 
     /**
+     * Covert a PHP value to a format which is exportable. The ::from_export
+     * method will be used to transform the same value back to what was
+     * originally sent into this method.
+     */
+    function to_export($value) {
+        return (string) $value;
+    }
+
+    /**
+     * Convert a text value from an export into a PHP value which would be
+     * used by normal code. The result should be the same value which was
+     * passed to ::to_export() originally.
+     */
+    function from_export($value) {
+        return $value;
+    }
+
+    /**
      * Get a presentation of the field value to use in a join constraint. 
      * Normally this is just the field name itself, but some more complex 
      * fields might need to utilize a database function or something to get

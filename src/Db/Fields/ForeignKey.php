@@ -2,7 +2,11 @@
 namespace Phlite\Db\Fields;
 
 class ForeignKey
-extends IntegerField {
+extends BaseField {
+    protected $ffield;
+    protected $fmodel;
+    protected $fmeta;
+
     function __construct($field, $options=array()) {
         parent::__construct($options);
 
@@ -14,7 +18,9 @@ extends IntegerField {
     }
 
     function getCreateSql($name, $compiler) {
-        return parent::getCreateSql($name, $compiler)
+        // Try and match the database field type exactly
+        $ffield = $this->fmeta->getField($this->ffield);
+        return $ffield->getCreateSql($name, $compiler)
             . sprintf(' REFERENCES %s (%s)',
                 $compiler->quote($this->fmeta['table']),
                 $compiler->quote($this->ffield)
