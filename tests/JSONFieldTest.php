@@ -7,7 +7,6 @@ use Phlite\Db\Migrations\Migration;
 
 class User
 extends Db\Model\ModelBase {
-    use Db\Model\Ext\ActiveRecord;
     static $meta = [
         'table' => 'user',
         'pk' => ['id'],
@@ -30,7 +29,6 @@ extends Db\Model\ModelMeta {
 
 class EmailAddress
 extends Db\Model\ModelBase {
-    use Db\Model\Ext\ActiveRecord;
     static $metaclass = EmailAddressMeta::class;
     static $meta = [
         'table' => 'email_addr',

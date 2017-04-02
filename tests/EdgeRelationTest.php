@@ -7,8 +7,6 @@ use Phlite\Db\Migrations\Migration;
 
 abstract class TestModelBase
 extends Db\Model\ModelBase {
-    use Db\Model\Ext\ActiveRecord;
-
     static $meta = [
         'label' => 'edge',
         'abstract' => true,
