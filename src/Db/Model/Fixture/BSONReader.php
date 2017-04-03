@@ -88,8 +88,3 @@ extends FileReader {
         return $this->readDocument();
     }
 }
-
-$bsr = new BSONStreamReader(dirname(__file__) . '/../../../tests/Data/categories.bson');
-foreach ($bsr as $doc) {
-    print_r($doc);
-}

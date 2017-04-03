@@ -28,7 +28,7 @@ abstract class DdlCompiler {
         $extras = false;
         $columns = array();
         foreach ($fields as $name => $F) {
-            $coldef = $this->visit($F);
+            $coldef = $F->getCreateSql($name, $this);
             if (is_array($coldef)) {
                 list($coldef, $extras) = $coldef;
                 if (is_array($extras))
@@ -53,5 +53,9 @@ abstract class DdlCompiler {
 
     function escape($what) {
         return $this->backend->escape($what);
+    }
+    
+    function getBackend() {
+        return $this->backend;
     }
 }

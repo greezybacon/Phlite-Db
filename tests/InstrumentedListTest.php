@@ -66,11 +66,6 @@ extends \PHPUnit_Framework_TestCase {
         ], 'default');
         Db\Manager::migrate(new CreateModels());
     }
-
-    static function tearDownAfterClass() {
-        Db\Manager::migrate(new CreateModels(), Migration::BACKWARDS);
-        Db\Manager::removeConnection('default');
-    }
     
     function testAddData() {
         $user = new User([

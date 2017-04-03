@@ -100,7 +100,7 @@ class TransactionCoordinator {
         if ($this->started && !isset($this->backend[$bkkey])) {
             if (!$this->distributed) {
                 $this->rollback();
-                throw new Exception\OrmError('Unable to add a backed to a local transaction');
+                throw new Exception\OrmError('Cannot add a backend to an open local transaction. Transaction must be started distributed');
             }
             elseif (!$backend instanceof Db\Backends\DistributedTransaction) {
                 throw new Exception\OrmError(sprintf(
@@ -204,7 +204,7 @@ class TransactionCoordinator {
 
         $success = true;
         foreach ($this->backends as $bk) {
-            if (!($success &= $bk->tryCommit()))
+            if (!($success = $bk->tryCommit()))
                 break;
         }
         foreach ($this->backends as $bk) {

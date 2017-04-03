@@ -1,19 +1,8 @@
 <?php
-
 use Phlite\Db;
-
-include_once 'Migrations.php';
 
 class CreateMigrateTest
 extends \PHPUnit_Framework_TestCase {
-    static function setUpBeforeClass() {
-        Db\Manager::addConnection([
-            'BACKEND' => 'Phlite\Db\Backends\SQLite',
-            'FILE' => ':memory:',
-        ], 'default');
-        Db\Manager::migrate(new CreateModels());
-    }
-
     function testCreateModel() {
         $fields = User::getMeta()->getFields();
         $this->assertArrayHasKey('id', $fields);

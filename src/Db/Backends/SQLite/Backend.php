@@ -85,14 +85,14 @@ implements Db\Transaction {
 
     // Transaction interface
     function beginTransaction() {
-        return $this->cnxn->exec('BEGIN');
+        return $this->getConnection()->exec('BEGIN');
     }
 
     function rollback() {
-        return $this->cnxn->exec('ROLLBACK');
+        return $this->getConnection()->exec('ROLLBACK');
     }
 
     function commit() {
-        return $this->cnxn->exec('COMMIT');
+        return $this->getConnection()->exec('COMMIT');
     }
 }

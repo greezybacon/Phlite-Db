@@ -44,13 +44,13 @@ abstract class BaseField {
     protected $__field;
 
     function getCreateSql($compiler) {
-        return sprintf('%s%s%s%s%s%s',
+        return sprintf('%s%s%s%s%s',
             $this->getAffinity(),
             $this->pk ? ' PRIMARY KEY' : '',
             $this instanceof AutoIdField ? ' AUTOINCREMENT' : '',
             $this->nullable ? '' : ' NOT NULL',
-            isset($this->default) ? sprintf(' DEFAULT %s', $this->getDefault()) : '',
-            isset($this->case) && !$this->case ? sprintf(' COLLATE NOCASE') : ''
+            isset($this->default) ? sprintf(' DEFAULT %s', 
+                $this->to_database($this->default, $compiler->getBackend())) : ''
         );
     }
 
@@ -110,4 +110,13 @@ extends BaseField {
 class TextField 
 extends BlobField {
     function getAffinity() { return 'TEXT'; }
+    function getCreateSql($compiler) {
+        return sprintf("%s%s",
+            parent::getCreateSql($compiler),
+            // ASCII case-insensitive is the only supported collation aside
+            // from BINARY (which is the default)
+            !$this->case ? ' COLLATE NOCASE' : ''
+            // SQLite does not support charsets. UTF-8 is implied for Unicode
+        );
+    }
 }

@@ -1,48 +1,66 @@
 <?php
 use Phlite\Db;
-
-require_once 'Migrations.php';
+use Phlite\Test\Northwind;
 
 class BasicSessionTest
-extends PHPUnit_Framework_TestCase {
+extends \PHPUnit_Framework_TestCase {
     static function setUpBeforeClass() {
         Db\Manager::addConnection([
             'BACKEND' => 'Phlite\Db\Backends\SQLite',
             'FILE' => ':memory:',
         ], 'default');
-        Db\Manager::migrate(new CreateModels());
     }
-
+    
     function testCreateSession() {
-        $user = new User(['name' => 'John Doe', 'username' => 'doejo']);
+        // Create a new product
+        $product = new Northwind\Product([
+            'ProductName'   => 'Prune Juice',
+            'UnitPrice'     => 2.39,
+        ]);
+        
+        $session = Db\Manager::getTransaction();
 
-        Db\Manager::add($user);
-        $this->assertNull($user->id);
+        $session->add($product);
+        $this->assertNull($product->ProductID);
 
-        Db\Manager::flush($user);
-        $this->assertNotNull($user->id);
+        $session->flush();
+        $this->assertNotNull($product->ProductID);
 
-        $this->assertTrue(Db\Manager::commit());
+        $this->assertTrue($session->commit());
     }
 
     function testSaveRelated() {
-        $user = new User(['name' => 'John Doe', 'username' => 'doejo']);
-        $email = $user->email = new EmailAddress(['address' => 'nomail@nothanks.tld']);
-        $user->save();
-
-        $this->assertNotNull($email->id);
-        $this->assertNotNull($user->email_id);
+        $P = Northwind\Product::lookup(['ProductName' => 'Prune Juice']);
+        $id = $P->ProductID;
+        $this->assertNotNull($P);
+        
+        $category = new Northwind\Category([
+            'CategoryName' => 'Juices',
+            'Description' => 'Boxed and bottled juices',
+        ]);
+        $P->category = $category;
+        $this->assertTrue($P->save());
+        $this->assertNotNull($category->CategoryID);
+        $this->assertNotNull($P->CategoryID);
     }
 
     function testSaveRelated_Session() {
-        $user = new User(['name' => 'John Doe', 'username' => 'doejo']);
-        $email = $user->email = new EmailAddress(['address' => 'nomail@nothanks.tld']);
+        $product = new Northwind\Product([
+            'ProductName' => 'Instant Pudding',
+            'UnitPrice' => 2.79,
+        ]);
+        $category = new Northwind\Category([
+            'CategoryName' => "Baking",
+            'Description' => 'Flour, sugar, yeast, and other ingredients',
+        ]);
+
         $session = Db\Manager::getTransaction();
-        $session->add($user);
-        $session->add($email);
+        $session->add($product);
+        $session->add($category);
         $session->flush();
 
-        $this->assertNotNull($email->id);
-        $this->assertNotNull($user->email_id);
+        $this->assertNotNull($category->CategoryID);
+        $this->assertNotNull($product->ProductID);
+        $this->assertNotNull($product->CategoryID);
     }
 }

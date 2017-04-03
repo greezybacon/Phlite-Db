@@ -12,12 +12,12 @@ namespace Phlite\Db\Util;
  * (NOW() - INTERVAL '5' MINUTE)
  *
  * Other more useful expression types extend from this base class
- * Aggregate - Use an aggregate function (eg. SUM) in a query
- * Field - Use a field of a model in a query
- * Func - Call a function on the DB server in a query (eg. NOW)
- * Interval - Use a date interval in a query
- * SqlCase - Use a CASE WHEN ... END in a query
- * SqlCode - Add arbitrary SQL to a query
+ *   - Aggregate - Use an aggregate function (eg. SUM) in a query
+ *   - Field - Use a field of a model in a query
+ *   - Func - Call a function on the DB server in a query (eg. NOW)
+ *   - Interval - Use a date interval in a query
+ *   - SqlCase - Use a CASE WHEN ... END in a query
+ *   - SqlCode - Add arbitrary SQL to a query
  *
  * TODO: Add `evaluate` support for the SqlCompiler::evaluate method
  */

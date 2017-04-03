@@ -8,7 +8,7 @@ class Product
 extends Model\ModelBase {
     static $meta = [
         'table' => 'Products',
-        'pk' => ['ProductId'],
+        'pk' => ['ProductID'],
         'joins' => [
             'supplier' => [
                 'constraint' => ['SupplierID' => 'Supplier.SupplierID'],
@@ -19,8 +19,6 @@ extends Model\ModelBase {
         ],
         'field_types' => [
             'ProductID' => Fields\AutoIdField::class,
-            'SupplierID' => Fields\IntegerField::class,
-            'CategoryID' => Fields\IntegerField::class,
         ],
     ];
 }
@@ -81,8 +79,6 @@ extends Model\ModelBase {
         ],
         'field_types' => [
             'OrderID' => Fields\AutoIdField::class,
-            'EmployeeID' => Fields\IntegerField::class,
-            'ShipperID' => Fields\IntegerField::class,
         ],
     ];
 
@@ -151,7 +147,6 @@ extends Model\ModelBase {
         ],
         'field_types' => [
             'EmployeeID' => Fields\AutoIdField::class,
-            'ReportsTo' => Fields\IntegerField::class,
         ],
     ];
 }
@@ -163,7 +158,6 @@ extends Model\ModelBase {
         'pk' => ['EmployeeID', 'TerritoryID'],
         'field_types' => [
             'EmployeeID' => Fields\AutoIdField::class,
-            'TerritoryID' => Fields\IntegerField::class,
         ],
     ];
 }

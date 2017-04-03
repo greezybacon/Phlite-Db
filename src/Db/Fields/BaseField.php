@@ -97,5 +97,7 @@ abstract class BaseField {
     /**
      * Cooperate in a CREATE TABLE statement for SqlCompilers
      */
-    abstract function getCreateSql($name, $compiler);
+    function getCreateSql($name, $compiler) {
+        return $compiler->visit($this);
+    }
 }

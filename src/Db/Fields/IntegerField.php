@@ -15,15 +15,4 @@ extends BaseField {
     function from_export($value) {
         return (int) $value;
     }
-
-    function getCreateSql($name, $compiler) {
-        return sprintf('%s %s%s%s%s%s',
-            $compiler->quote($name),
-            $compiler->getTypeName($this),
-            ($this->length) ? "({$this->length})" : '',
-            $this->unsigned ? ' UNSIGNED' : '',
-            (!$this->nullable ? ' NOT' : '') . ' NULL',
-            ($this->default) ? (' DEFAULT ' . $compiler->escape($this->default)) : ''
-        );
-    }
 }
