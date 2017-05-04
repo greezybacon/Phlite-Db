@@ -36,7 +36,8 @@ abstract class Migration {
     }
 
     /**
-     * Fetch operations defined in this migration
+     * Fetch operations defined in this migration. Can return any iterable
+     * or be defined as a generator function.
      */
     abstract function getOperations();
 }

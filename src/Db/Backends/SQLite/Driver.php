@@ -41,8 +41,7 @@ implements SqlDriver {
         }
         catch (\Exception $ex) {
             throw new Exception\InconsistentModel(
-                'Unable to prepare query: '.$this->conn->lastErrorMsg()
-                .': '.$this->stmt->sql);
+                'Unable to prepare query: '.$ex->getMessage().': '.$stmt->sql);
         }
 
         // TODO: Implement option to drop parameters

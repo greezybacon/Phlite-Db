@@ -418,7 +418,7 @@ abstract class SqlCompiler {
     abstract function compileBulkUpdate(Model\QuerySet $queryset, array $what);
 
     // XXX: Place this in another interface to define more specific type and forms of inspection
-    abstract function inspectTable($table, $details=false, $cacheable=true);
+    abstract function inspectTable($meta, $details=false, $cacheable=true);
 
     // XXX: Move this to another interface to include complete support for
     //      model migrations

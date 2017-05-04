@@ -59,9 +59,10 @@ implements Db\Transaction {
 
         // Assertions
         if ($db !== ':memory:') {
-            $path = dirname(abspath($db));
+            $path = dirname(realpath($db)) ?: '.';
             if (!file_exists($path) || !is_dir($path))
-                throw new InvalidArgumentException('Database path does not exist');
+                throw new \InvalidArgumentException(sprintf(
+                    '%s: Database path does not exist', $db));
         }
 
         if (!($this->cnxn = new \SQLite3($db)))

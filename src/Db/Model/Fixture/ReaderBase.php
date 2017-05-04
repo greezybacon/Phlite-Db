@@ -17,6 +17,11 @@ implements \IteratorAggregate {
         while ($record = $this->readRecord())
             yield $record;
     }
+    
+    function iterModels() {
+        foreach ($this->getIterator() as $record)
+            yield $this->makeModel($record);
+    }
 
     function fromExport(array $record, array $fields) {
         foreach ($record as $name=>$value) {

@@ -25,10 +25,13 @@ class Manager {
     protected function addConnection(array $info, $key='default') {
         if (!isset($info['BACKEND']))
             throw new \Exception("'BACKEND' must be set in the database options.");
-        $backendClass = $info['BACKEND'] . '\Backend';
+        $backendClass = $info['BACKEND'];
+        // Allow for abbreviated database backend names (lacking the trailing \Backend)
+        if (!is_subclass_of($info['BACKEND'], Backend::class))
+            $backendClass .= '\Backend';
         if (!class_exists($backendClass))
             throw new \Exception($backendClass
-                . ': Specified database backend does not exist');
+                . ': Specified database backend class does not exist');
         $this->backends[$key] = new $backendClass($info);
     }
 
@@ -61,6 +64,14 @@ class Manager {
      * Fetch a connection object for a particular model and for a particular
      * reason. The reason code is selected from the constants defined in the
      * Router class.
+     *
+     * Parameters:
+     * $model - (string) model class (fully qualified) for which a database 
+     *      backend is requested. Class should extend from ModelBase. A 
+     *      ModelBase instance can also be passed.
+     * $reason - (int) type of activity for which a database connection is
+     *      requestd. Defaults to Router::READ. Useful if backend routers use
+     *      varying backends based on read/write activity.
      *
      * Returns:
      * (Connection) object which can handle queries for this model.
@@ -102,26 +113,19 @@ class Manager {
      * would mean database lookups or NULL.
      *
      * Returns:
-     * <SqlExecutor> — an instance of SqlExecutor which can perform the
-     * actual execution (via ::execute())
+     * <SqlDriver> — an instance of SqlDriver which has already performed
+     * the write operation. Or FALSE if the operation did not succeed.
      */
     protected static function delete(Model\ModelBase $model) {
         Model\ModelInstanceManager::uncache($model);
         $backend = static::getManager()->getBackend($model, Router::WRITE);
-        $stmt = $backend->getCompiler()->compileDelete($model);
-
-        $ex = $backend->getDriver($stmt);
-        $ex->execute();
-        if ($ex->affected_rows() != 1)
-            return false;
-
-        return $ex;
+        return $backend->deleteModel($model);
     }
 
     /**
      * save
      *
-     * Commit model changes to the database. This method will compile an
+     * Send model changes to the database. This method will compile an
      * insert or an update as necessary.
      *
      * Returns:
@@ -132,23 +136,14 @@ class Manager {
      */
     static function save(Model\ModelBase $model) {
         $backend = static::getManager()->getBackend($model, Router::WRITE);
-        $compiler = $backend->getCompiler();
-        if ($model->__new__)
-            $stmt = $compiler->compileInsert($model);
-        else
-            $stmt = $compiler->compileUpdate($model);
-
-        $ex = $backend->getDriver($stmt);
-        $ex->execute();
-        if ($ex->affected_rows() != 1)
-            return false;
-
-        return $ex;
+        return $backend->saveModel($model);
     }
 
     /**
-     * Create a table for a new model. If the table already exists, then the
-     * table should be
+     * Perform a database migration. The migration can be played forwards or
+     * backwards (undone). This might include creating a table for a new model,
+     * adding, renaming, or removing a field from a table, loading initial
+     * data, or running some PHP code to migrate existing data.
      */
     static function migrate(Migrations\Migration $migration,
         $direction=Migrations\Migration::FORWARDS
@@ -175,10 +170,23 @@ class Manager {
         return $this->transaction;
     }
 
+    /**
+     * Add a model to a new or current transaction. The model will be
+     * inserted or updated depending on whether or not the model is marked
+     * as new. The transaction will need to be flushed before the model
+     * will be sent to the database, and a commit will need to be made
+     * before the change will be permanent.
+     */
     protected function add(Model\ModelBase $model, $callback=null, $args=null) {
         return $this->getTransaction()->add($model, $callback, $args);
     }
 
+    /**
+     * Delete a model inside the current transaction. The model will be
+     * marked as deleted immediately, but will be deleted from the database
+     * when the transaction is flushed. It will be permanently removed after
+     * the transaction is committed.
+     */
     protected function remove(Model\ModelBase $model, $callback=null, $args=null) {
         return $this->getTransaction()->delete($model, $callback, $args);
     }
@@ -197,7 +205,8 @@ class Manager {
      */
     protected function openTransaction($mode=0) {
         if (isset($this->transaction))
-            throw new Exception\OrmError('Transaction already started. Use `commit` or `rollback` to complete the current transaction before staring a new one');
+            throw new Exception\OrmError(
+                'Transaction already started. Use `commit` or `rollback` to complete the current transaction before staring a new one');
 
         $this->transaction = new TransactionCoordinator($this, $mode);
         return $this->transaction;

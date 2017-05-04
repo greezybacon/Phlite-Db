@@ -8,10 +8,24 @@ use Phlite\Db\Model\Fixture;
 
 // Model Creation Operations ----------------------------------
 
-class CreateModels
+class InitialMigration
 extends Migrations\Migration {
+    static $csv_files = [
+        ['Data/categories.csv', Category::class],
+        ['Data/customers.csv', Customer::class],
+        ['Data/employee-territories.csv', EmployeeTerritory::class],
+        ['Data/employees.csv', Employee::class],
+        ['Data/order-details.csv', OrderDetail::class],
+        ['Data/orders.csv', Order::class],
+        ['Data/products.csv', Product::class],
+        ['Data/regions.csv', Region::class],
+        ['Data/shippers.csv', Shipper::class],
+        ['Data/suppliers.csv', Supplier::class],
+        ['Data/territories.csv', Territory::class],
+    ];
+
     function getOperations() {
-        return [
+        yield from new \ArrayIterator([
             new Migrations\CreateModel(Product::class, [
                 'ProductID'     => new Fields\AutoIdField(['pk' => true]),
                 'ProductName'   => new Fields\TextField(['length' => 40]),
@@ -122,37 +136,9 @@ extends Migrations\Migration {
                 'CompanyName'   => new Fields\TextField(['length' => 40]),
                 'Phone'         => new Fields\TextField(['length' => 24]),
             ]),
-       ];
-    }
-}
+        ]);
 
-// Test Fixtures ----------------------------------------------
-
-class LoadNorthwindTest
-extends \PHPUnit_Framework_TestCase {
-    static $csv_files = [
-        ['Northwind/Data/categories.csv', Category::class],
-        ['Northwind/Data/customers.csv', Customer::class],
-        ['Northwind/Data/employee-territories.csv', EmployeeTerritory::class],
-        ['Northwind/Data/employees.csv', Employee::class],
-        ['Northwind/Data/order-details.csv', OrderDetail::class],
-        ['Northwind/Data/orders.csv', Order::class],
-        ['Northwind/Data/products.csv', Product::class],
-        ['Northwind/Data/regions.csv', Region::class],
-        ['Northwind/Data/shippers.csv', Shipper::class],
-        ['Northwind/Data/suppliers.csv', Supplier::class],
-        ['Northwind/Data/territories.csv', Territory::class],
-    ];
-
-    static function setUpBeforeClass() {
-        Db\Manager::addConnection([
-            'BACKEND' => 'Phlite\Db\Backends\SQLite',
-            'FILE' => ':memory:',
-        ], 'default');
-        Db\Manager::migrate(new CreateModels());
-    }
-
-    function testLoadData() {
+        // Now load the initial data
         foreach (static::$csv_files as $I) {
             list($filename, $class) = $I;
             $filename = dirname(__file__) . DIRECTORY_SEPARATOR . $filename;
@@ -161,14 +147,7 @@ extends \PHPUnit_Framework_TestCase {
                 'model' => $class::getMeta(),
                 'file' => $filename,
             ]));
-            $loader->loadAll();
-            printf("%s: Succefully loaded %d fixtures\n", 
-                (new \ReflectionClass($class))->getShortName(),
-                $loader->loaded);
+            yield new Migrations\LoadFixtures($loader);
         }
-    }
-
-    function testLoadedDataExists() {
-        $this->assertEquals(8, Category::objects()->count());
     }
 }

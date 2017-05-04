@@ -221,7 +221,7 @@ class Compiler extends SqlCompiler {
         $q->values = $model::getMeta('pk');
         $stmt = $q->getQuery(array(QuerySet::OPT_NOSORT => true));
         $stmt->sql = 'SELECT COUNT(*) FROM ('.$stmt->sql.') __';
-       return $stmt;
+        return $stmt;
     }
 
     function getOrderByFields(QuerySet $queryset) {
