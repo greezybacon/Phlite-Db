@@ -178,14 +178,16 @@ extends Model\ModelBase {
     static $meta = [
         'table' => 'Customers',
         'pk' => ['CustomerID'],
+        'joins' => [
+            'orders' => [
+                'reverse' => 'Order.customer',
+            ],
+        ],
         'edges' => [
             'demographics' => [
                 'target' => Demographic::class,
                 'through' => CustomerDemographic::class,
             ],
-        ],
-        'field_types' => [
-            'CustomerID' => Fields\AutoIdField::class,
         ],
     ];
 }

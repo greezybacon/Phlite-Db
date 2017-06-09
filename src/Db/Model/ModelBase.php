@@ -291,9 +291,10 @@ abstract class ModelBase {
     static function lookup($criteria) {
         // Model::lookup(1), where >1< is the pk value
         if (!is_array($criteria)) {
+            $args = func_get_args();
             $criteria = array();
             $pk = static::getMeta('pk');
-            foreach (func_get_args() as $i=>$f)
+            foreach ($args as $i=>$f)
                 $criteria[$pk[$i]] = $f;
 
             // Only consult cache for PK lookup, which is assumed if the

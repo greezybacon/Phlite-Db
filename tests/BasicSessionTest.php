@@ -4,20 +4,13 @@ use Phlite\Test\Northwind;
 
 class BasicSessionTest
 extends \PHPUnit_Framework_TestCase {
-    static function setUpBeforeClass() {
-        Db\Manager::addConnection([
-            'BACKEND' => 'Phlite\Db\Backends\SQLite',
-            'FILE' => ':memory:',
-        ], 'default');
-    }
-    
     function testCreateSession() {
         // Create a new product
         $product = new Northwind\Product([
             'ProductName'   => 'Prune Juice',
             'UnitPrice'     => 2.39,
         ]);
-        
+
         $session = Db\Manager::getTransaction();
 
         $session->add($product);
@@ -33,7 +26,7 @@ extends \PHPUnit_Framework_TestCase {
         $P = Northwind\Product::lookup(['ProductName' => 'Prune Juice']);
         $id = $P->ProductID;
         $this->assertNotNull($P);
-        
+
         $category = new Northwind\Category([
             'CategoryName' => 'Juices',
             'Description' => 'Boxed and bottled juices',
@@ -45,13 +38,14 @@ extends \PHPUnit_Framework_TestCase {
     }
 
     function testSaveRelated_Session() {
-        $product = new Northwind\Product([
-            'ProductName' => 'Instant Pudding',
-            'UnitPrice' => 2.79,
-        ]);
         $category = new Northwind\Category([
             'CategoryName' => "Baking",
             'Description' => 'Flour, sugar, yeast, and other ingredients',
+        ]);
+        $product = new Northwind\Product([
+            'ProductName' => 'Instant Pudding',
+            'UnitPrice' => 2.79,
+            'category' => $category,
         ]);
 
         $session = Db\Manager::getTransaction();

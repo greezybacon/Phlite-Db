@@ -2,78 +2,14 @@
 namespace Test\InstrumentedListTest;
 
 use Phlite\Db;
-use Phlite\Db\Fields;
-use Phlite\Db\Migrations\Migration;
-
-abstract class TestModelBase
-extends Db\Model\ModelBase {
-    static $meta = [
-        'label' => 'ilt',
-        'abstract' => true,
-    ];
-}
-
-class User
-extends TestModelBase {
-    static $meta = [
-        'table' => 'user',
-        'pk' => ['id'],
-        'joins' => [
-            'emails' => [
-                'reverse' => 'EmailAddress.user',
-            ]
-        ]
-    ];
-}
-
-class EmailAddress
-extends TestModelBase {
-    static $meta = [
-        'table' => 'email_addr',
-        'pk' => ['id'],
-        'joins' => [
-            'user' => [
-                'constraint' => ['user_id' => 'User.id'],
-            ]
-        ]
-    ];
-}
-
-class CreateModels
-extends Db\Migrations\Migration {
-    function getOperations() {
-        return [
-            new Db\Migrations\CreateModel(User::class, [
-                'id'        => new Fields\AutoIdField(['pk' => true]),
-                'name'      => new Fields\TextField(['length' => 64]),
-                'username'  => new Fields\TextField(['length' => 32]),
-            ]),
-            new Db\Migrations\CreateModel(EmailAddress::class, [
-                'id'        => new Fields\AutoIdField(['pk' => true]),
-                'user_id'   => new Fields\IntegerField(['bits' => 32]),
-                'address'   => new Fields\TextField(['length' => 64]),
-            ]),
-        ];
-    }
-}
+use Phlite\Test\Northwind;
 
 class InstrumentedListTest
 extends \PHPUnit_Framework_TestCase {
-    static function setUpBeforeClass() {
-        Db\Manager::addConnection([
-            'BACKEND' => 'Phlite\Db\Backends\SQLite',
-            'FILE' => ':memory:',
-        ], 'default');
-        Db\Manager::migrate(new CreateModels());
-    }
-    
     function testAddData() {
-        $user = new User([
-            'name' => 'John Doe',
-            'username' => 'jdoe',
-        ]);
-        $this->assertTrue($user->save());
-        $this->assertTrue($user->id !== null);
+        $order = new Northwind\Order();
+        $order->customer = Northwind\Customer::lookup('BOTTM');
+        $this->assertTrue($order->save());
     }
 
     function testRelationWrite() {
@@ -91,7 +27,7 @@ extends \PHPUnit_Framework_TestCase {
         $joe = EmailAddress::objects()->first();
         $this->assertEquals($joe->user->username, 'jdoe');
     }
-    
+
     function testSelectRelated() {
         $joe = EmailAddress::objects()->select_related('user')->first();
         $this->assertArrayHasKey('user', $joe->__ht__);

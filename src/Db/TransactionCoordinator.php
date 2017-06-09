@@ -193,7 +193,7 @@ class TransactionCoordinator {
                 try {
                     if (!$bk->commit())
                         return false;
-                    $this->log->reset();
+                    $this->reset();
                 }
                 catch (Exception $ex) {
                     // XXX: Rollback if unsuccessful?
@@ -223,8 +223,13 @@ class TransactionCoordinator {
             // the model updates have already been executed.
             throw new Exception\OrmError('Distributed transaction commit failed');
         }
-        $this->log->reset();
+        $this->reset();
         return $success;
+    }
+
+    function reset() {
+        $this->started = false;
+        $this->log->reset();
     }
 
     /**
@@ -238,7 +243,7 @@ class TransactionCoordinator {
      */
     function rollback($restore=false) {
         // Anything currently dirty is no longer dirty
-        foreach ($this->log->iterDirty() as $tmd) {
+        foreach ($this->log->iterJournal() as $tmd) {
             list($type, $model, $dirty) = $tmd;
             $model->__rollback($dirty);
         }

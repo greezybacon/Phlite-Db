@@ -119,7 +119,7 @@ extends Migrations\Migration {
                 'RegionID'      => new Fields\IntegerField(),
             ]),
             new Migrations\CreateModel(Customer::class, [
-                'CustomerID'    => new Fields\AutoIdField(['pk' => true]),
+                'CustomerID'    => new Fields\TextField(['pk' => true, 'length'=>8]),
                 'CompanyName'   => new Fields\TextField(['length' => 40]),
                 'ContactName'   => new Fields\TextField(['length' => 30]),
                 'ContactTitle'  => new Fields\TextField(['length' => 30]),
@@ -129,7 +129,7 @@ extends Migrations\Migration {
                 'PostalCode'    => new Fields\TextField(['length' => 10]),
                 'Country'       => new Fields\TextField(['length' => 15]),
                 'Phone'         => new Fields\TextField(['length' => 24]),
-                'Fax'           => new Fields\TextField(['length' => 24]),                
+                'Fax'           => new Fields\TextField(['length' => 24]),
             ]),
             new Migrations\CreateModel(Shipper::class, [
                 'ShipperID'     => new Fields\AutoIdField(['pk' => true]),
