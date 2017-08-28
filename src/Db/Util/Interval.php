@@ -3,7 +3,7 @@
 namespace Phlite\Db\Util;
 
 class Interval
-extends Function {
+extends Func {
     var $type;
 
     function __construct($interval, $args) {

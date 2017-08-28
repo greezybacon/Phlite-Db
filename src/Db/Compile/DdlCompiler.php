@@ -25,16 +25,19 @@ abstract class DdlCompiler {
 
     function compileCreate($modelClass, $fields, $constraints=array()) {
         $meta = $modelClass::getMeta();
-        $extras = false;
+        $extras = (bool) $constraints;
         $columns = array();
+        foreach ($constraints as $name => $C) {
+            $constraints[$name] = $C->getCreateSql($this);
+        }
         foreach ($fields as $name => $F) {
             $coldef = $F->getCreateSql($name, $this);
             if (is_array($coldef)) {
                 list($coldef, $extras) = $coldef;
                 if (is_array($extras))
-                    $constraints[] = $extras;
-                else
                     $constraints = array_merge($constraints, $extras);
+                else
+                    $constraints[] = $extras;
             }
             $columns[] = sprintf("%s %s", $this->quote($name), $coldef);
         }

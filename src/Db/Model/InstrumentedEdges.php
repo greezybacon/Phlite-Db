@@ -31,6 +31,9 @@ extends InstrumentedList {
         $iterator=EdgeModelInstanceManager::class
     ) {
         list($middleModel, , $join) = $fkey;
+        if (!isset($join['through']))
+            throw new \Exception('Edges must define a "through" model');
+
         list($this->relation, ) = $join['through'];
         parent::__construct($fkey, $queryset, 
         function($queryset) use ($iterator, $middleModel) {

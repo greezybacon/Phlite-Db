@@ -9,6 +9,7 @@ use Phlite\Db\Util;
 class QuerySet
 implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
     var $model;
+    protected $backend;
 
     var $constraints = array();
     var $path_constraints = array();
@@ -47,6 +48,16 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
 
     function __construct($model) {
         $this->model = $model;
+    }
+
+    function withBackend(Backend $backend) {
+        $c = clone $this;
+        $c->backend = $backend;
+        return $c;
+    }
+
+    function getBackend() {
+        return $this->backend ?: Manager::getBackend($this->model);
     }
 
     function filter() {
@@ -287,10 +298,9 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
         elseif (isset($this->_count)) {
             return $this->_count;
         }
-        $backend = Manager::getBackend($this->model);
         $compiler = $this->getCompiler();
         $stmt = $compiler->compileCount($this);
-        $exec = $backend->execute($stmt);
+        $exec = $this->getBackend()->execute($stmt);
         $row = $exec->fetchRow();
         return $this->_count = $row[0];
     }
@@ -383,7 +393,7 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
     }
 
     protected function getCompiler() {
-        return Manager::getBackend($this->model)->getCompiler();
+        return $this->getBackend()->getCompiler();
     }
 
     /**
@@ -392,7 +402,7 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
      * the database.
      */
     function delete() {
-        $backend = Manager::getBackend($this->model);
+        $backend = $this->getBackend();
         $compiler = $backend->getCompiler();
         // XXX: Mark all in-memory cached objects as deleted
         $stmt = $compiler->compileBulkDelete($this);
@@ -405,7 +415,7 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
      * new values for the update.
      */
     function update(array $what) {
-        $backend = Manager::getBackend($this->model);
+        $backend = $this->getBackend();
         $compiler = $backend->getCompiler();
         $stmt = $compiler->compileBulkUpdate($this, $what);
         $exec = $backend->execute($stmt);
@@ -492,7 +502,7 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
         if (!$query->defer && $model::getMeta('defer'))
             $query->defer = $model::getMeta('defer');
 
-        $compiler = Manager::getBackend($model)->getCompiler();
+        $compiler = $this->getCompiler();
         return $this->query = $compiler->compileSelect($query);
     }
 

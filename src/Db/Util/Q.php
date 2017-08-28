@@ -51,54 +51,17 @@ implements \Serializable {
     }
 
     /**
-     * Check if the values match given the operator.
-     *
-     * Throws:
-     * OrmException - if $operator is not supported
-     */
-    static function evaluate($record, $field, $check) {
-        static $ops; if (!isset($ops)) { $ops = array(
-            'exact' => function($a, $b) { return is_string($a) ? strcasecmp($a, $b) == 0 : $a == $b; },
-            'isnull' => function($a, $b) { return is_null($a) == $b; },
-            'gt' => function($a, $b) { return $a > $b; },
-            'gte' => function($a, $b) { return $a >= $b; },
-            'lt' => function($a, $b) { return $a < $b; },
-            'lte' => function($a, $b) { return $a <= $b; },
-            'range' => function($a, $b) { return $a >= $b[0] && $a <= $b[1]; },
-            'contains' => function($a, $b) { return stripos($a, $b) !== false; },
-            'startswith' => function($a, $b) { return stripos($a, $b) === 0; },
-            'endswith' => function($a, $b) { return $b === '' || strcasecmp(substr($a, -strlen($b))) === 0; },
-            'regex' => function($a, $b) { return preg_match("/$a/iu", $b); },
-            'hasbit' => function($a, $b) { return ($a & $b) == $b; },
-        ); }
-        list($field, $path, $operator) = SqlCompiler::splitCriteria($field);
-        if (!isset($ops[$operator]))
-            throw new Exception\OrmError($operator.': Unsupported operator');
-
-        if ($record instanceof Model\ModelBase) {
-            if ($path)
-                $record = $record->getByPath($path);
-            $field = $record->get($field);
-        }
-        else {
-            $field = $record[$field];
-        }
-
-        return $ops[$operator]($field, $check);
-    }
-
-    /**
      * Evaluate this entire Q against a record. The fields are checked
      * according to the criteria in this Q. Data in other records in a
      * result set (such as aggregate functions) are not supported.
      */
-    function matches(array $record) {
+    function matches($record) {
         // Start with FALSE for OR and TRUE for AND
         $result = !$this->ored;
         foreach ($this->constraints as $field=>$check) {
             $R = ($check instanceof self)
                 ? $check->matches($record)
-                : static::evaluate($record, $field, $check);
+                : SqlCompiler::evaluate($record, $field, $check);
             if ($this->ored) {
                 if ($result |= $R)
                     break;
@@ -126,7 +89,6 @@ implements \Serializable {
 
     function serialize() {
         return serialize(array($this->negated, $this->ored, $this->constraints));
-
     }
 
     function unserialize($data) {

@@ -58,6 +58,55 @@ abstract class SqlCompiler {
     }
 
     /**
+     * Check if the values match given the operator.
+     *
+     * Parameters:
+     * $record - <ModelBase> An model instance representing a row from the
+     *      database
+     * $field - Field path including operator used as the evaluated
+     *      expression base. To check if field `name` startswith something,
+     *      $field would be `name__startswith`.
+     * $check - <mixed> value used as the comparison. This would be the RHS
+     *      of the condition expressed with $field. This can also be a Q
+     *      instance, in which case, $field is not considered, and the Q
+     *      will be used to evaluate the $record directly.
+     *
+     * Throws:
+     * OrmException - if $operator is not supported     *
+     */
+    static function evaluate($record, $field, $check) {
+        static $ops; if (!isset($ops)) { $ops = array(
+            'exact' => function($a, $b) { return is_string($a) ? strcasecmp($a, $b) == 0 : $a == $b; },
+            'isnull' => function($a, $b) { return is_null($a) == $b; },
+            'gt' => function($a, $b) { return $a > $b; },
+            'gte' => function($a, $b) { return $a >= $b; },
+            'lt' => function($a, $b) { return $a < $b; },
+            'lte' => function($a, $b) { return $a <= $b; },
+            'range' => function($a, $b) { return $a >= $b[0] && $a <= $b[1]; },
+            'contains' => function($a, $b) { return stripos($a, $b) !== false; },
+            'startswith' => function($a, $b) { return stripos($a, $b) === 0; },
+            'endswith' => function($a, $b) { return $b === '' || strcasecmp(substr($a, -strlen($b))) === 0; },
+            'regex' => function($a, $b) { return preg_match("/$a/iu", $b); },
+            'hasbit' => function($a, $b) { return ($a & $b) == $b; },
+        ); }
+        list($field, $path, $operator) = static::splitCriteria($field);
+        if (!isset($ops[$operator]))
+            throw new Exception\OrmError($operator.': Unsupported operator');
+
+        if ($record instanceof Model\ModelBase) {
+            if ($path)
+                $record = $record->getByPath($path);
+            $field = $record->get($field);
+        }
+        else {
+            $field = $record[$field];
+        }
+
+        //var_dump($operator, $field, $check);
+        return $ops[$operator]($field, $check);
+    }
+
+    /**
      * Handles breaking down a field or model search descriptor into the
      * model search path, field, and operator parts. When used in a queryset
      * filter, an expression such as

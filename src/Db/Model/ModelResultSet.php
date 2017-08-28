@@ -3,7 +3,7 @@
 namespace Phlite\Db\Model;
 
 use Phlite\Db\Manager;
-use Phlite\Util;
+use Phlite\Db\Util;
 
 class ModelResultSet
 extends CachedResultSet {

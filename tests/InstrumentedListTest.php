@@ -8,29 +8,38 @@ class InstrumentedListTest
 extends \PHPUnit_Framework_TestCase {
     function testAddData() {
         $order = new Northwind\Order();
-        $order->customer = Northwind\Customer::lookup('BOTTM');
+        $order->customer = Northwind\Customer::objects()->lookup('BOTTM');
         $this->assertTrue($order->save());
     }
 
     function testRelationWrite() {
-        $joe = User::objects()->first();
-        $joe->emails->add(new EmailAddress(['address' => 'joe@example.com']));
-        $this->assertTrue($joe->emails->saveAll());
-        $this->assertEquals(1, EmailAddress::objects()
-            ->filter(['address' => 'joe@example.com'])->count());
+        $supplier = Northwind\Supplier::objects()->first();
+        $before = $supplier->products->count();
+        $supplier->products->add(Northwind\Product::objects()->lookup([
+            'ProductName' => 'Prune Juice']));
+        $this->assertTrue($supplier->products->saveAll());
+        $this->assertEquals(1 + $before,
+            Northwind\Product::objects()->filter([
+                'SupplierID' => $supplier->SupplierID
+            ])->count());
 
-        $joe = User::objects()->first();
-        $this->assertEquals(1, $joe->emails->count());
+        $supplier = Northwind\Supplier::objects()->first();
+        $this->assertEquals(1 + $before, $supplier->products->count());
     }
 
     function testLazySelectRelated() {
-        $joe = EmailAddress::objects()->first();
-        $this->assertEquals($joe->user->username, 'jdoe');
+        $chai = Northwind\Product::objects()->lookup(1);
+        $this->assertNotNull($chai);
+        $this->assertInstanceOf(Northwind\Supplier::class, $chai->supplier);
+        $this->assertEquals($chai->supplier->CompanyName, 'Exotic Liquids');
     }
 
     function testSelectRelated() {
-        $joe = EmailAddress::objects()->select_related('user')->first();
-        $this->assertArrayHasKey('user', $joe->__ht__);
-        $this->assertInstanceOf(User::class, $joe->user);
+        $chai = Northwind\Product::objects()
+            ->select_related('category')
+            ->filter(['ProductID' => 1])
+            ->one();
+        $this->assertArrayHasKey('category', $chai->__ht__);
+        $this->assertInstanceOf(Northwind\Category::class, $chai->category);
     }
 }

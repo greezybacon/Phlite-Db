@@ -4,6 +4,7 @@ namespace Phlite\Db\Model;
 
 use Phlite\Db\Exception;
 use Phlite\Db\Manager;
+use Phlite\Db\Util;
 
 /**
  * Meta information about a model including edges (relationships), table
@@ -67,7 +68,7 @@ implements \ArrayAccess {
         
         // Break down edge (many-to-many) metadata to joins
         foreach ($this->meta['edges'] as $field => $e) {
-            $this->meta['joins'][$field] = $this->getJoinInfoForEdge($e);
+            $this->meta['joins'][$field] = $this->getJoinInfoForEdge($e, $field);
         }
 
         // Break down foreign-key metadata
@@ -261,7 +262,7 @@ implements \ArrayAccess {
         $this->meta['joins'][$name] = $this->buildJoin($join);
     }
     
-    function getJoinInfoForEdge(array $edge) {
+    function getJoinInfoForEdge(array $edge, $name) {
         // Simplistic configuration -> specify 'target' and 'through' models
         $join = [
             'broker' => InstrumentedEdges::class,
@@ -269,12 +270,13 @@ implements \ArrayAccess {
         if (isset($edge['target']) && isset($edge['through'])) {
             if (!class_exists($edge['target']))
                 throw new Exception\ModelConfigurationError(sprintf(
-                    '%s: Target model for edge does not exist', $edge['target']));
+                    '%s: Target model for edge `%s` does not exist', 
+                    $edge['target'], $name));
             if (!class_exists($edge['through']))
                 throw new Exception\ModelConfigurationError(sprintf(
                     '%s: Intermediate model for edge does not exist', $edge['through']));
             
-            // For this configuration, the `through` model is inspected for 
+            // For this configuration, the `through` model is inspected for
             // a relationship to reverse
             foreach ($edge['through']::getMeta('joins') as $field=>$info) {
                 list($class, $pk) = $info['fkey'];
@@ -293,7 +295,11 @@ implements \ArrayAccess {
                     $join['through'] = [$field, $edge['target']];
                     break;
                 }
-            }    
+            }
+
+            if (!isset($join['through']))
+                throw new \Exception(sprintf('%s: %s: Unable to determine fields used for joins',
+                    $this->model, $name));
         }
         return $join;
     }
@@ -326,9 +332,15 @@ implements \ArrayAccess {
         throw new \Exception('Model MetaData is immutable');
     }
 
-    function getFields() {
-        if (!isset($this->fields))
-            $this->fields = self::inspectFields();
+    function getFields($try_schema=true) {
+        if (!isset($this->fields)) {
+            if ($try_schema)
+                if (!($this->fields = $this->getSchema()))
+                    // XXX: Emit warning?
+                    unset($this->fields);
+            if (!isset($this->fields))
+                $this->fields = $this->fetchFields();
+        }
         return $this->fields;
     }
 
@@ -343,6 +355,15 @@ implements \ArrayAccess {
      */
     function getFieldNames() {
         return array_keys($this->getFields());
+    }
+
+    /**
+     * Convenience method to return the schema defined for the model.
+     */
+    function getSchema() {
+        $builder = new SchemaBuilder();
+        $this->model::buildSchema($builder);
+        return $builder->getFields();
     }
 
     /**
@@ -402,7 +423,7 @@ implements \ArrayAccess {
         return $props;
     }
 
-    function inspectFields() {
+    function fetchFields() {
         if (isset($this->apc_key)) {
             $key = static::$secret . "fields/{$this['table']}";
             if ($fields = apcu_fetch($key)) {

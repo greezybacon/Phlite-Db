@@ -4,7 +4,6 @@ namespace Phlite\Db\Util;
 
 class Aggregate
 extends Func {
-
     var $expr;
     var $distinct=false;
     var $constraint=false;

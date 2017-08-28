@@ -23,7 +23,7 @@ extends \PHPUnit_Framework_TestCase {
     }
 
     function testSaveRelated() {
-        $P = Northwind\Product::lookup(['ProductName' => 'Prune Juice']);
+        $P = Northwind\Product::objects()->lookup(['ProductName' => 'Prune Juice']);
         $id = $P->ProductID;
         $this->assertNotNull($P);
 

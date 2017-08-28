@@ -101,44 +101,6 @@ class Manager {
         $this->routers[] = $router;
     }
 
-    protected function getCompiler(Model\ModelBase $model) {
-        return $this->getBackend($model)->getCompiler();
-    }
-
-    /**
-     * delete
-     *
-     * Delete a model object from the underlying database. This method will
-     * also clear the model cache of the specified model so future lookups
-     * would mean database lookups or NULL.
-     *
-     * Returns:
-     * <SqlDriver> — an instance of SqlDriver which has already performed
-     * the write operation. Or FALSE if the operation did not succeed.
-     */
-    protected static function delete(Model\ModelBase $model) {
-        Model\ModelInstanceManager::uncache($model);
-        $backend = static::getManager()->getBackend($model, Router::WRITE);
-        return $backend->deleteModel($model);
-    }
-
-    /**
-     * save
-     *
-     * Send model changes to the database. This method will compile an
-     * insert or an update as necessary.
-     *
-     * Returns:
-     * <SqlDriver> — an instance of SqlDriver which can perform the
-     * actual save of the model (via ::execute()). Thereafter, query
-     * ::insert_id() for an auto id value and ::affected_rows() for the
-     * count of affected rows by the update (should be 1).
-     */
-    static function save(Model\ModelBase $model) {
-        $backend = static::getManager()->getBackend($model, Router::WRITE);
-        return $backend->saveModel($model);
-    }
-
     /**
      * Perform a database migration. The migration can be played forwards or
      * backwards (undone). This might include creating a table for a new model,
@@ -237,6 +199,10 @@ class Manager {
 
         $rv = $this->transaction->rollback();
         unset($this->transaction);
+
+        // XXX: The internal model cache will likely contain references to
+        // model objects whose changes were rolled back.
+
         return $rv;
     }
 

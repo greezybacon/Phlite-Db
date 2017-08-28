@@ -1,6 +1,8 @@
 <?php
 namespace Phlite\Db\Migrations;
 
+use Phlite\Db\Exception;
+
 /**
  * Migration operation to create a new table for a new model. The operation
  * should be constructed with the model class (for meta data access), the
@@ -18,9 +20,15 @@ extends Operation {
     var $fields;
     var $options = array();
 
-    function __construct($modelClass, array $fields, $options=array()) {
+    function __construct($modelClass, array $fields=null, $options=array()) {
         $this->modelClass = $modelClass;
-        $this->fields = $fields;
+        // Allow the Model to specify fields and constraints with the
+        // ::buildSchema method
+        $this->fields = $fields ?: $modelClass::getMeta()->getFields();
+        // TODO: Fetch constraints from the builder
+        if (!$this->fields) {
+            throw new Exception\OrmError('Fields must be specified or defined in Model::getSchema');
+        }
         $this->options = $options;
     }
 

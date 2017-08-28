@@ -9,6 +9,7 @@ use Phlite\Util;
 
 abstract class ModelBase {  
     static $metaclass = ModelMeta::class;
+    static $manager = ModelManager::class;
     static $meta = array(
         'table' => false,
         'ordering' => false,
@@ -81,13 +82,8 @@ abstract class ModelBase {
                         $criteria[$F] = $this->__ht__[$local];
                     }
                 }
-                try {
-                    $class = $j['fkey'][0];
-                    $v = $this->__ht__[$field] = $class::lookup($criteria);
-                }
-                catch (Exception\DoesNotExist $e) {
-                    $v = null;
-                }
+                $class = $j['fkey'][0];
+                $v = $this->__ht__[$field] = $class::objects()->lookup($criteria);
                 return $v;
             }
         }
@@ -175,11 +171,7 @@ abstract class ModelBase {
             elseif ($value instanceof $j['fkey'][0]) {
                 // Capture the object under the object's field name
                 $this->__ht__[$field] = $value;
-                if ($value->__new__)
-                    // save() will be performed when saving this object
-                    $value = null;
-                else
-                    $value = $value->get($j['fkey'][1]);
+                $value = $value->get($j['fkey'][1]);
                 // Fall through to the standard logic below
             }
             else
@@ -245,6 +237,10 @@ abstract class ModelBase {
         return isset($key) ? $M->offsetGet($key) : $M;
     }
 
+    static function buildSchema(SchemaBuilder $builder) {
+        return static::getMeta()->getFields(false);
+    }
+
     /**
      * objects
      *
@@ -253,58 +249,8 @@ abstract class ModelBase {
      * method to apply forced constraints on the QuerySet.
      */
     static function objects() {
-        return new QuerySet(get_called_class());
-    }
-
-    /**
-     * lookup
-     *
-     * Retrieve a record by its primary key. This method may be short
-     * circuited by model caching if the record has already been loaded by
-     * the database. In such a case, the database will not be consulted for
-     * the model's data.
-     *
-     * This method can be called with an array of keyword arguments matching
-     * the PK of the object or the values of the primary key. Both of these
-     * usages are correct:
-     *
-     * >>> User::lookup(1)
-     * >>> User::lookup(array('id'=>1))
-     *
-     * For composite primary keys and the first usage, pass the values in
-     * the order they are given in the Model's 'pk' declaration in its meta
-     * data. For example:
-     *
-     * >>> UserPrivilege::lookup(1, 2)
-     *
-     * Parameters:
-     * $criteria - (mixed) primary key for the sought model either as
-     *      arguments or key/value array as the function's first argument
-     *
-     * Returns:
-     * (Object<ModelBase>|null) a single instance of the sought model or
-     * null if no such instance exists.
-     *
-     * Throws:
-     * Db\Exception\NotUnique if the criteria does not hit a single object
-     */
-    static function lookup($criteria) {
-        // Model::lookup(1), where >1< is the pk value
-        if (!is_array($criteria)) {
-            $args = func_get_args();
-            $criteria = array();
-            $pk = static::getMeta('pk');
-            foreach ($args as $i=>$f)
-                $criteria[$pk[$i]] = $f;
-
-            // Only consult cache for PK lookup, which is assumed if the
-            // values are passed as args rather than an array
-            if ($cached = ModelInstanceManager::checkCache(get_called_class(),
-                    $criteria))
-                return $cached;
-        }
-
-        return static::objects()->filter($criteria)->one();
+        $M = static::$manager;
+        return new $M(get_called_class());
     }
 
     private function getPk() {
@@ -325,7 +271,7 @@ abstract class ModelBase {
      */
     function delete() {
         try {
-            $ex = Manager::delete($this);
+            $ex = static::objects()->deleteModel($this);
             if ($ex === false)
                 return false;
 
@@ -384,7 +330,7 @@ abstract class ModelBase {
             return true;
 
         try {
-            $ex = Manager::save($this);
+            $ex = static::objects()->saveModel($this);
             if ($ex === false) {
                 // This doesn't really signify an error. It just means that
                 // the database believes that the row did not change. For

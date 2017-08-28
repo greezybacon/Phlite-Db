@@ -1,6 +1,8 @@
 <?php
 namespace Phlite\Db;
 
+use Phlite\Db\Model;
+
 /**
  * Class: Db\Backend
  *

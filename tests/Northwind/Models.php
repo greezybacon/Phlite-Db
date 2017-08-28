@@ -3,6 +3,7 @@ namespace Phlite\Test\Northwind;
 
 use Phlite\Db\Fields;
 use Phlite\Db\Model;
+use Phlite\Db\Model\SchemaBuilder;
 
 class Product
 extends Model\ModelBase {
@@ -17,10 +18,22 @@ extends Model\ModelBase {
                 'constraint' => ['CategoryID' => 'Category.CategoryID'],
             ],
         ],
-        'field_types' => [
-            'ProductID' => Fields\AutoIdField::class,
-        ],
     ];
+
+    static function buildSchema(SchemaBuilder $b) {
+        $b->addFields([
+            'ProductID'     => new Fields\AutoIdField(['pk' => true]),
+            'ProductName'   => new Fields\TextField(['length' => 40]),
+            'SupplierID'    => new Fields\ForeignKey(Supplier::class, ['join' => 'supplier']),
+            'CategoryID'    => new Fields\IntegerField(),
+            'QuantityPerUnit' => new Fields\TextField(['length' => 20]),
+            'UnitPrice'     => new Fields\DecimalField(),
+            'UnitsInStock'  => new Fields\IntegerField(['bits' => 16, 'default' => 0]),
+            'UnitsOnOrder'  => new Fields\IntegerField(['bits' => 16, 'default' => 0]),
+            'ReorderLevel'  => new Fields\IntegerField(['bits' => 16]),
+            'Discontinued'  => new Fields\IntegerField(['bits' => 1]),
+        ]);
+    }
 }
 
 class Supplier
@@ -28,10 +41,29 @@ extends Model\ModelBase {
     static $meta = [
         'table' => 'Suppliers',
         'pk' => ['SupplierID'],
-        'field_types' => [
-            'SupplierID' => Fields\AutoIdField::class,
-        ]
+        'joins' => [
+            'products' => [
+                'reverse' => 'Product.supplier',
+            ],
+        ],
     ];
+
+    static function buildSchema(SchemaBuilder $b) {
+        $b->addFields([
+            'SupplierID'    => new Fields\AutoIdField(['pk' => true]),
+            'CompanyName'   => new Fields\TextField(['length' => 40]),
+            'ContactName'   => new Fields\TextField(['length' => 30]),
+            'ContactTitle'  => new Fields\TextField(['length' => 30]),
+            'Address'       => new Fields\TextField(['length' => 60]),
+            'City'          => new Fields\TextField(['length' => 15]),
+            'Region'        => new Fields\TextField(['length' => 15]),
+            'PostalCode'    => new Fields\TextField(['length' => 10]),
+            'Country'       => new Fields\TextField(['length' => 15]),
+            'Phone'         => new Fields\TextField(['length' => 24]),
+            'Fax'           => new Fields\TextField(['length' => 24]),
+            'HomePage'      => new Fields\TextField(['length' => 255]),
+        ]);
+    }
 }
 
 class OrderDetail
@@ -48,6 +80,16 @@ extends Model\ModelBase {
             ],
         ]
     ];
+
+    static function buildSchema(SchemaBuilder $b) {
+        $b->addFields([
+            'OrderID'       => new Fields\IntegerField(),
+            'ProductID'     => new Fields\IntegerField(),
+            'UnitPrice'     => new Fields\DecimalField(),
+            'Quantity'      => new Fields\IntegerField(),
+            'Discount'      => new Fields\DecimalField(),
+        ]);
+    }
 
     function getQuantityShippable() {
         // XXX: Assumes overlay annotation
@@ -77,10 +119,26 @@ extends Model\ModelBase {
                 'through' => OrderDetail::class
             ]
         ],
-        'field_types' => [
-            'OrderID' => Fields\AutoIdField::class,
-        ],
     ];
+
+    static function buildSchema(SchemaBuilder $b) {
+        $b->addFields([
+            'OrderID'       => new Fields\AutoIdField(['pk' => true]),
+            'CustomerID'    => new Fields\IntegerField(),
+            'EmployeeID'    => new Fields\IntegerField(),
+            'OrderDate'     => new Fields\DatetimeField(),
+            'RequiredDate'  => new Fields\DatetimeField(),
+            'ShippedDate'   => new Fields\DatetimeField(),
+            'ShipVia'       => new Fields\IntegerField(),
+            'Freight'       => new Fields\DecimalField(),
+            'ShipName'      => new Fields\TextField(['length' => 40]),
+            'ShipAddress'   => new Fields\TextField(['length' => 60]),
+            'ShipCity'      => new Fields\TextField(['length' => 15]),
+            'ShipRegion'    => new Fields\TextField(['length' => 15]),
+            'ShipPostalCode'=> new Fields\TextField(['length' => 10]),
+            'ShipCountry'   => new Fields\TextField(['length' => 15]),
+        ]);
+    }
 
     function getTotal() {
         $total = 0;
@@ -98,10 +156,16 @@ extends Model\ModelBase {
     static $meta = [
         'table' => 'Categories',
         'pk' => ['CategoryID'],
-        'field_types' => [
-            'CategoryID' => Fields\AutoIdField::class,
-        ],
     ];
+
+    static function buildSchema(SchemaBuilder $b) {
+        $b->addFields([
+            'CategoryID'    => new Fields\AutoIdField(['pk' => true]),
+            'CategoryName'  => new Fields\TextField(['length' => 15]),
+            'Description'   => new Fields\TextField(['length' => 1<<12]),
+            'Picture'       => new Fields\BinaryField(),
+        ]);
+    }
 }
 
 class Territory
@@ -109,6 +173,11 @@ extends Model\ModelBase {
     static $meta = [
         'table' => 'Territories',
         'pk' => ['TerritoryID'],
+        'joins' => [
+            'region' => [
+                'constraint' => ['RegionID' => 'Region.RegionID'],
+            ],
+        ],
         'field_types' => [
             'TerritoryID' => Fields\AutoIdField::class,
         ],
@@ -118,12 +187,16 @@ extends Model\ModelBase {
 class Region
 extends Model\ModelBase {
     static $meta = [
-        'table' => 'RegionID',
+        'table' => 'Region',
         'pk' => ['RegionID'],
-        'field_types' => [
-            'RegionID' => Fields\AutoIdField::class,
-        ],
     ];
+
+    static function buildSchema(SchemaBuilder $b) {
+        $b->addFields([
+            'RegionID'      => new Fields\AutoIdField(['pk' => true]),
+            'RegionDescription' => new Fields\TextField(['length' => 50]),
+        ]);
+    }
 }
 
 class Employee
@@ -156,6 +229,14 @@ extends Model\ModelBase {
     static $meta = [
         'table' => 'EmployeeTerritories',
         'pk' => ['EmployeeID', 'TerritoryID'],
+        'joins' => [
+            'employee' => [
+                'constraint' => ['EmployeeID' => 'Employee.EmployeeID'],
+            ],
+            'territory' => [
+                'constraint' => ['TerritoryID' => 'Territory.TerritoryID'],
+            ],
+        ],
         'field_types' => [
             'EmployeeID' => Fields\AutoIdField::class,
         ],
