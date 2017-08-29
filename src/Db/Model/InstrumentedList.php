@@ -47,11 +47,18 @@ implements \JsonSerializable {
 
     function remove($object, $delete=true) {
         if ($delete)
-            $object->delete();
+            if (!$object->delete())
+                return false;
         else
             foreach ($this->key as $field=>$value)
                 $object->set($field, null);
-            // XXX: Seems like the object should be removed from ->storage
+
+        // Seems like the object should be removed from ->storage
+        foreach ($this as $k=>$v)
+            if ($v === $object)
+                unset($this[$k]);
+
+        return true;
     }
 
     /**
@@ -113,9 +120,6 @@ implements \JsonSerializable {
     }
 
     // QuerySet delegates
-    function count() {
-        return $this->objects()->count();
-    }
     function exists() {
         return $this->queryset->exists();
     }
@@ -144,7 +148,7 @@ implements \JsonSerializable {
 
     // QuerySet overriedes
     function __call($func, $args) {
-        return call_user_func_array(array($this->objects(), $func), $args);
+        $this->objects()->$func(...$args);
     }
 
     // ---- JsonSerializable interface ------------------------

@@ -30,7 +30,7 @@ extends Func {
         // For DISTINCT, require a field specification — not a relationship
         // specification.
         $E = $this->expr;
-        if ($E instanceof SqlFunction) {
+        if ($E instanceof Expression) {
             $field = $E->toSql($compiler, $model);
         }
         else {
@@ -64,6 +64,6 @@ extends Func {
     }
 
     function getFieldName() {
-        return strtolower(sprintf('%s__%s', $this->args[0], $this->func));
+        return strtolower(sprintf('%s__%s', $this->expr, $this->func));
     }
 }

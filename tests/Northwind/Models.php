@@ -34,6 +34,16 @@ extends Model\ModelBase {
             'Discontinued'  => new Fields\IntegerField(['bits' => 1]),
         ]);
     }
+
+    function shouldReorder() {
+        return $this->ReorderLevel >= $this->UnitsInStock + $this->UnitsOnOrder;
+    }
+
+    function low_on_stock() {
+        return static::objects()->filter([
+            'ReorderLevel__gt' => Field('UnitsInStock')->plus(Field('UnitsOnOrder'))
+        ]);
+    }
 }
 
 class Supplier
@@ -92,8 +102,10 @@ extends Model\ModelBase {
     }
 
     function getQuantityShippable() {
-        // XXX: Assumes overlay annotation
-        return min($this->Quantity, $this->UnitsInStock);
+        // TODO: Maybe? this should work without $this->product; however, PHP
+        // developers are too smart for me and restrict using the overlay as
+        // the $this variable in the scope of this method.
+        return min($this->Quantity, $this->product->UnitsInStock);
     }
 }
 
@@ -144,6 +156,7 @@ extends Model\ModelBase {
         $total = 0;
         foreach ($this->items as $I)
             $total += $I->Quantity * $I->UnitPrice;
+        return $total;
     }
 
     function getShippable() {
@@ -210,6 +223,9 @@ extends Model\ModelBase {
             ],
             'reports' => [
                 'reverse' => 'Employee.manager',
+            ],
+            'sales' => [
+                'reverse' => 'Order.employee',
             ],
         ],
         'edges' => [

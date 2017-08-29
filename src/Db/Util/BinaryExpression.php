@@ -29,14 +29,14 @@ class BinaryExpression extends Expression {
             else
                 $O[] = $compiler->input($operand);
         }
-        $expr = implode(" {$this->operator} ", $O);
+        $expr = implode($this->operator, $O);
 
         // Emit parentheses if left-hand operator is not left associative
         // with this one
-        if ($lho && (!isset(self::$associative[$lho]))
+        if ($lho && (!isset(self::$associative[$lho])
             || !($comm = self::$associative[$lho])
             || !in_array($this->operator, $comm)
-        ) {
+        )) {
             $expr = " ($expr) ";
         }
 
@@ -61,7 +61,7 @@ class BinaryExpression extends Expression {
         );
         $op = strtolower($op);
         if (isset($operators[$op]))
-            return new static($operators[$op], $operatnds);
+            return new static($operators[$op], $operands);
 
         throw new \InvalidArgumentException($operator.': Invalid operator specified');
     }

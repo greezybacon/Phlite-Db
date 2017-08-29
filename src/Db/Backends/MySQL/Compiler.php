@@ -224,7 +224,7 @@ class Compiler extends SqlCompiler {
         return $stmt;
     }
 
-    function getOrderByFields(QuerySet $queryset) {
+    function getOrderByFields(QuerySet $queryset, $model) {
         $orders = array();
         if (!($columns = $queryset->getSortFields()))
             return $orders;
@@ -274,7 +274,7 @@ class Compiler extends SqlCompiler {
         // Compile the ORDER BY clause
         $sort = '';
         if (!isset($this->options[QuerySet::OPT_NOSORT])) {
-            if ($orders = $this->getOrderByFields($queryset))
+            if ($orders = $this->getOrderByFields($queryset, $model))
                 $sort = ' ORDER BY '.implode(', ', $orders);
         }
 

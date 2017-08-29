@@ -97,7 +97,7 @@ class ModelManager {
      * <SqlDriver> — an instance of SqlDriver which has already performed
      * the write operation. Or FALSE if the operation did not succeed.
      */
-    protected static function deleteModel(ModelBase $model) {
+    function deleteModel(ModelBase $model) {
         ModelInstanceManager::uncache($model);
         $backend = $this->backend ?: Db\Manager::getBackend($model, Db\Router::WRITE);
         return $backend->deleteModel($model);
@@ -115,7 +115,7 @@ class ModelManager {
      * ::insert_id() for an auto id value and ::affected_rows() for the
      * count of affected rows by the update (should be 1).
      */
-    static function saveModel(ModelBase $model) {
+     function saveModel(ModelBase $model) {
         $backend = Db\Manager::getBackend($model, Db\Router::WRITE);
         return $backend->saveModel($model);
     }

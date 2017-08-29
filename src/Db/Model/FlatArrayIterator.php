@@ -12,8 +12,10 @@ implements \IteratorAggregate {
     }
 
     function getIterator() {
-        $this->resource = $this->queryset->getQuery();
-        while ($row = $this->resource->getRow())
+        $backend = $this->queryset->getBackend();
+        $stmt = $this->queryset->getQuery();
+        $this->resource = $backend->getDriver($stmt);
+        while ($row = $this->resource->fetchRow())
             yield $row;
 
         $this->resource->close();
