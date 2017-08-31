@@ -3,7 +3,7 @@
 namespace Phlite\Db\Model;
 
 use Phlite\Db\Compile;
-use Phlite\Db\Manager;
+use Phlite\Db\Router;
 
 class ModelInstanceManager
 implements \IteratorAggregate {
@@ -156,7 +156,7 @@ implements \IteratorAggregate {
     }
 
     function getIterator() {
-        $backend = Manager::getBackend($this->model);
+        $backend = Router::getBackend($this->model);
         $stmt = $this->queryset->getQuery();
         $this->resource = $backend->getDriver($stmt);
         $this->resource->execute();

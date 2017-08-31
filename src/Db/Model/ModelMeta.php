@@ -3,7 +3,7 @@
 namespace Phlite\Db\Model;
 
 use Phlite\Db\Exception;
-use Phlite\Db\Manager;
+use Phlite\Db\Router;
 use Phlite\Db\Util;
 
 /**
@@ -430,7 +430,7 @@ implements \ArrayAccess {
                 return $fields;
             }
         }
-        $backend = Manager::getBackend($this);
+        $backend = Router::getBackend($this);
         $fields = $backend->getCompiler()->inspectTable($this, true);
         if (isset($key) && $fields) {
             apcu_store($key, $fields, 1800);

@@ -3,7 +3,7 @@
 namespace Phlite\Db\Model;
 
 use Phlite\Db\Exception;
-use Phlite\Db\Manager;
+use Phlite\Db\Router;
 use Phlite\Db\Util;
 
 class QuerySet
@@ -57,7 +57,7 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
     }
 
     function getBackend() {
-        return $this->backend ?: Manager::getBackend($this->model);
+        return $this->backend ?: Router::getBackend($this->model);
     }
 
     function filter() {

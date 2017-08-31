@@ -11,7 +11,7 @@ extends \PHPUnit_Framework_TestCase {
             'UnitPrice'     => 2.39,
         ]);
 
-        $session = Db\Manager::getTransaction();
+        $session = Db\Manager::getSession();
 
         $session->add($product);
         $this->assertNull($product->ProductID);
@@ -48,7 +48,7 @@ extends \PHPUnit_Framework_TestCase {
             'category' => $category,
         ]);
 
-        $session = Db\Manager::getTransaction();
+        $session = Db\Manager::getSession();
         $session->add($product);
         $session->add($category);
         $session->flush();

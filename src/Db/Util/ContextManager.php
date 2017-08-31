@@ -27,7 +27,7 @@ class ContextManager {
             $exc = true;
             try {
                 // This is a difference from Python. Since the usage of the
-                // context manager is and expression, the return value should
+                // context manager is an expression, the return value should
                 // be captured.
                 // TODO: Allow $value to be unpacked as args
                 return $something($value);

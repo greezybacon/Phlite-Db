@@ -1,5 +1,4 @@
 <?php
-
 namespace Phlite\Db;
 
 abstract class Router {
@@ -27,4 +26,51 @@ abstract class Router {
      * the project settings file.
      */
     abstract function getConnectionForModel(ModelBase $model, $reason);
+
+    protected static $routers = array();
+
+    /**
+     * getBackend
+     *
+     * Fetch a connection object for a particular model and for a particular
+     * reason. The reason code is selected from the constants defined in the
+     * Router class.
+     *
+     * Parameters:
+     * $model - (string) model class (fully qualified) for which a database
+     *      backend is requested. Class should extend from ModelBase. A
+     *      ModelBase instance can also be passed.
+     * $reason - (int) type of activity for which a database connection is
+     *      requestd. Defaults to Router::READ. Useful if backend routers use
+     *      varying backends based on read/write activity.
+     *
+     * Returns:
+     * (Connection) object which can handle queries for this model.
+     * Optionally, the $key passed to ::addConnection() can be returned and
+     * this Manager will lookup the Connection automatically.
+     */
+     static function getBackend($model, $reason=Router::READ) {
+        if ($model instanceof Model\ModelBase)
+            $model = get_class($model);
+        foreach (static::$routers as $R) {
+            if ($C = $R->getBackendForModel($model, $reason)) {
+                if (is_string($C)) {
+                    $C = Manager::getConnection($C);
+                }
+                return $C;
+            }
+        }
+        try {
+            return Manager::getConnection('default');
+        }
+        catch (\Exception $e) {
+            throw new \Exception("'default' database not specified");
+        }
+    }
+
+    static function addRouter(Router $router) {
+        static::$routers[] = $router;
+    }
+
+
 }

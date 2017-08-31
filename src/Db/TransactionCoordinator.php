@@ -2,7 +2,7 @@
 namespace Phlite\Db;
 
 use Phlite\Db\Exception;
-use Phlite\Db\Manager;
+use Phlite\Db\Router;
 use Phlite\Db\Signals;
 
 /**
@@ -29,7 +29,7 @@ use Phlite\Db\Signals;
  * instance to get access to a current transaction.
  */
 class TransactionCoordinator {
-    protected $manager;
+    protected $session;
     protected $mode;
     protected $dirty = array();
     protected $backends = array();
@@ -44,21 +44,21 @@ class TransactionCoordinator {
     const TYPE_DELETE = 2;
     const TYPE_INSERT = 3;
 
-    function __construct(Manager $manager, $flags=0, $log=null) {
-        $this->manager = $manager;
+    function __construct(Session $session, $flags=0, $log=null) {
+        $this->session = $session;
         $this->log = $log ?: new TransactionLog();
         $this->setFlag($flags);
     }
 
     /**
-     * Set the mode of the transaction. 
+     * Set the mode of the transaction.
      *
-     * FLAG_AUTOFLUSH 
+     * FLAG_AUTOFLUSH
      *      Send updates and deletes to the database immediately. The save
      *      callback is invoked when the object is added to the transaction
      *      and updates to the same object are not deduplicated.
      *
-     * FLAG_RETRY_COMMIT 
+     * FLAG_RETRY_COMMIT
      *      Retry the commit one time if the commit fails
      */
     function setFlag($mode) {
@@ -94,7 +94,7 @@ class TransactionCoordinator {
 
     protected function captureBackend($model) {
         // Capture the number of backends we're dealing with
-        $backend = Manager::getBackend($model);
+        $backend = Router::getBackend($model);
         $bkkey = spl_object_hash($backend);
 
         if ($this->started && !isset($this->backend[$bkkey])) {

@@ -1,7 +1,7 @@
 <?php
 namespace Phlite\Db\Model;
 
-use Phlite\Db;
+use Phlite\Db\Router;
 
 class ModelManager {
     protected $model;
@@ -31,7 +31,7 @@ class ModelManager {
     }
 
     protected function getCompiler(ModelBase $model) {
-        $backend = $this->backend ?: Manager::getBackend($model);
+        $backend = $this->backend ?: Router::getBackend($model);
         return $backend->getCompiler();
     }
 
@@ -99,7 +99,7 @@ class ModelManager {
      */
     function deleteModel(ModelBase $model) {
         ModelInstanceManager::uncache($model);
-        $backend = $this->backend ?: Db\Manager::getBackend($model, Db\Router::WRITE);
+        $backend = $this->backend ?: Router::getBackend($model, Router::WRITE);
         return $backend->deleteModel($model);
     }
 
@@ -116,7 +116,7 @@ class ModelManager {
      * count of affected rows by the update (should be 1).
      */
      function saveModel(ModelBase $model) {
-        $backend = Db\Manager::getBackend($model, Db\Router::WRITE);
+        $backend = $this->backend ?: Router::getBackend($model, Router::WRITE);
         return $backend->saveModel($model);
     }
 }
