@@ -107,7 +107,8 @@ implements \ArrayAccess {
         }
 
         // Capture enclosing namespace
-        $meta['namespace'] = (new \ReflectionClass($this->model))->getNamespaceName();
+        $class = new \ReflectionClass($model);
+        $meta['namespace'] = $class->getNamespaceName();
 
         // Ensure other supported fields are set and are arrays
         foreach (array('pk', 'ordering', 'defer', 'select_related') as $f) {
@@ -117,13 +118,13 @@ implements \ArrayAccess {
                 $meta[$f] = array($meta[$f]);
         }
 
-        if ($meta['abstract'])
+        if ($meta['abstract'] || $class->isAbstract())
             return $meta;
 
         if (!$meta['view']) {
             if (!$meta['table'])
                 throw new Exception\ModelConfigurationError(
-                    sprintf('%s: Model does not define meta.table', $model));
+                    sprintf('%s: Model is not abstract and does not define meta.table', $model));
             elseif (!$meta['pk'])
                 throw new Exception\ModelConfigurationError(
                     sprintf('%s: Model does not define meta.pk', $model));

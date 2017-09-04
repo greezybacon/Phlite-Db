@@ -332,7 +332,7 @@ abstract class SqlCompiler {
                 elseif (is_callable($op))
                     $filter[] = call_user_func($op, $field, $value, $model);
                 else
-                    $filter[] = sprintf($op, $field, $this->input($value, $slot));
+                    $filter[] = sprintf($op, $field, $this->input($value, $model));
             }
         }
         $glue = $Q->isOred() ? ' OR ' : ' AND ';

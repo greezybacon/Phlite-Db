@@ -96,7 +96,7 @@ implements Db\Transaction,
         }
 
         $this->charset = $options->get('CHARSET', 'utf8');
-        $collation = $options->get('COLLATION', 'utf8_general_ci')
+        $collation = $options->get('COLLATION', 'utf8_general_ci');
 
         // Set desired encoding according to settings.php
         // Thanks to FreshMedia

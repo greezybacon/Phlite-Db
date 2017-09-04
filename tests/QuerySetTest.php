@@ -63,11 +63,38 @@ extends \PHPUnit_Framework_TestCase {
             ->select_related('category')
             ->filter(['ProductID' => 1])
             ->annotate(['expensive?' => new Util\Expression(
-                new Util\Q(['UnitPrice__gt' => 50.0]))])
+                ['UnitPrice__gt' => 50.0])])
             ->one();
 
         $this->assertNotNull($chai);
         $this->assertNotNull($chai->{'expensive?'});
-        $this->assertEquals($chai->{'expensive?'}, false);
+        $this->assertEquals(false, $chai->{'expensive?'});
+    }
+
+    function testFieldExpressionFilter() {
+        $subpar = Northwind\Product::objects()
+            ->filter([
+                'ReorderLevel__gt' => (new Util\Field('UnitsInStock'))->plus(new Util\Field('UnitsOnOrder'))
+            ]);
+
+        $this->assertEquals(2, count($subpar));
+        foreach ($subpar as $P)
+            $this->assertEquals(true, $P->UnitsInStock + $P->UnitsOnOrder < $P->ReorderLevel);
+    }
+
+    function testAggregateFilter() {
+        // Criteria here should be placed in the having clause
+        $big_guns = Northwind\Employee::objects()
+            ->annotate(['gross_sales' => Util\Aggregate::SUM(
+                (new Util\Field('sales__items__Quantity'))->times(new Util\Field('sales__items__UnitPrice')))
+            ])
+            ->filter(['gross_sales__gt' => 20000]);
+
+        $this->assertContains(' HAVING ', (string) $big_guns);
+        $this->assertNotContains(' WHERE ', (string) $big_guns);
+        $this->assertEquals(7, count($big_guns));
+
+        foreach ($big_guns as $bg)
+            $this->assertTrue($bg->gross_sales > 20000);
     }
 }

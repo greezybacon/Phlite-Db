@@ -55,14 +55,4 @@ extends InstrumentedList {
         parent::add($glue);
         return $edge;
     }
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
 }

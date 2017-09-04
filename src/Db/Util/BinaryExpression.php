@@ -29,7 +29,7 @@ class BinaryExpression extends Expression {
             else
                 $O[] = $compiler->input($operand);
         }
-        $expr = implode($this->operator, $O);
+        $expr = implode(" {$this->operator} ", $O);
 
         // Emit parentheses if left-hand operator is not left associative
         // with this one
@@ -37,7 +37,7 @@ class BinaryExpression extends Expression {
             || !($comm = self::$associative[$lho])
             || !in_array($this->operator, $comm)
         )) {
-            $expr = " ($expr) ";
+            $expr = "($expr)";
         }
 
         if ($alias)

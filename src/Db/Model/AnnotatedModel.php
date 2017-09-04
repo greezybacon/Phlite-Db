@@ -15,21 +15,25 @@ class AnnotatedModel {
         $fqclass = $class ?: get_class($model);
         $class = $class ?: (new \ReflectionClass($model))->getShortName();
         $extra = ($extras instanceof ModelBase) ? 'Writeable' : '';
-        $classname = "{$extra}AnnotatedModel___{$class}";
+        $classname = "_{$extra}Annotated_{$class}";
 
         // XXX: Would be super nice to return an anonymous class, but that
         //      might imply a metadata inspection for each instance, and
         //      an anonymous class cannot extend another class defined by
         //      a variable (return new class extends $parentClass {})
 
+        // For consistent meta-data, the annotated class should be in the same
+        // namespace as the parent class
+        $namespace = (new \ReflectionClass($model))->getNamespaceName();
+
         if (!isset($classes[$classname])) {
-            $namespace = __NAMESPACE__;
+            $local_ns = __NAMESPACE__;
             $q = <<<END_CLASS
 namespace {$namespace};
 class {$classname}
 extends \\{$fqclass} {
     private \$__overlay__;
-    use {$extra}AnnotatedModelTrait;
+    use \\$local_ns\\{$extra}AnnotatedModelTrait;
 
     static \$meta = array();
 
@@ -43,9 +47,9 @@ END_CLASS;
             eval($q);
             $classes[$classname] = 1;
         }
-        $class = __NAMESPACE__ . '\\' . $classname;
+        $class = $namespace . '\\' . $classname;
         return $class::__hydrate($model->__ht__, $extras);
-    }    
+    }
 }
 
 trait AnnotatedModelTrait {
@@ -57,7 +61,7 @@ trait AnnotatedModelTrait {
 
     function set($what, $to) {
         if (isset($this->__overlay__[$what]))
-            throw new Exception\OrmException('Annotated fields are read-only');
+            throw new \Phlite\Db\Exception\OrmException('Annotated fields are read-only');
         return parent::set($what, $to);
     }
 

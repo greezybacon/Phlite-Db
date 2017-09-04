@@ -23,6 +23,10 @@ namespace Phlite\Db\Util;
  */
 class Expression {
     function __construct(...$args) {
+        // One day—probably not—but maybe one day, PHP will support keyword
+        // arguments
+        if (is_array($args[0]))
+            $args = $args[0];
         $this->args = $args;
     }
 

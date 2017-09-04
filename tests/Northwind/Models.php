@@ -41,7 +41,7 @@ extends Model\ModelBase {
 
     function low_on_stock() {
         return static::objects()->filter([
-            'ReorderLevel__gt' => Field('UnitsInStock')->plus(Field('UnitsOnOrder'))
+            'ReorderLevel__gt' => (new Field('UnitsInStock'))->plus(new Field('UnitsOnOrder'))
         ]);
     }
 }

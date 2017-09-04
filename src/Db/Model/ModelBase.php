@@ -199,7 +199,7 @@ abstract class ModelBase {
                 // new object_id value, the relationship to object should be
                 // cleared and rebuilt
                 unset($this->__ht__[$related]);
-        }
+        }     
         $this->__ht__[$field] = $value;
     }
     function __set($field, $value) {
@@ -403,6 +403,7 @@ abstract class ModelBase {
 
     function __toString() {
         $a = new Util\ArrayObject($this->getPk());
-        return sprintf('<%s %s>', get_class($this), $a->join('=',', '));
+        return sprintf('<%s %s>', (new \ReflectionClass($this))->getShortName(),
+            $a->join('=',', '));
     }
 }

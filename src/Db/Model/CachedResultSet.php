@@ -15,7 +15,7 @@ use Phlite\Util;
  * which allow full lazy array-style access to the inner iterator.
  */
 class CachedResultSet
-extends Util\ArrayObject
+extends Util\ListObject
 implements \ArrayAccess, \Countable {
     protected $inner;
     protected $eoi = false;
