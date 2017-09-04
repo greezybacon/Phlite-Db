@@ -6,13 +6,13 @@ class Func
 extends Expression {
     var $func;
 
-    function __construct($name) {
+    function __construct($name, ...$args) {
         $this->func = $name;
-        parent::__construct(array_slice(func_get_args(), 1));
+        parent::__construct(...$args);
     }
 
     function input($what, $compiler, $model) {
-        if ($what instanceof SqlFunction)
+        if ($what instanceof Expression)
             $A = $what->toSql($compiler, $model);
         elseif ($what instanceof Q)
             $A = $compiler->compileQ($what, $model);
@@ -26,14 +26,7 @@ extends Expression {
         foreach ($this->args as $A)
             $args[] = $this->input($A, $compiler, $model);
         return sprintf('%s(%s)%s', $this->func, implode(', ', $this->args),
-            $alias && $this->alias ? ' AS '.$compiler->quote($this->alias) : '');
-    }
-
-    function setAlias($alias) {
-        $this->alias = $alias;
-    }
-    function getAlias() {
-        return $this->alias;
+            $alias ? ' AS '.$compiler->quote(alias) : '');
     }
 
     static function __callStatic($func, $args) {

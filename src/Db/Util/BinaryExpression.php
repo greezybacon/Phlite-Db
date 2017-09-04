@@ -63,7 +63,7 @@ class BinaryExpression extends Expression {
         if (isset($operators[$op]))
             return new static($operators[$op], $operands);
 
-        throw new \InvalidArgumentException($operator.': Invalid operator specified');
+        throw new \InvalidArgumentException($op.': Invalid operator specified');
     }
 
     function __toString() {

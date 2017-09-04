@@ -57,4 +57,17 @@ extends \PHPUnit_Framework_TestCase {
         $this->assertEquals(4, $emp_id);
         $this->assertEquals(156, $sales);
     }
+
+    function testSimpleAnnotation() {
+        $chai = Northwind\Product::objects()
+            ->select_related('category')
+            ->filter(['ProductID' => 1])
+            ->annotate(['expensive?' => new Util\Expression(
+                new Util\Q(['UnitPrice__gt' => 50.0]))])
+            ->one();
+
+        $this->assertNotNull($chai);
+        $this->assertNotNull($chai->{'expensive?'});
+        $this->assertEquals($chai->{'expensive?'}, false);
+    }
 }

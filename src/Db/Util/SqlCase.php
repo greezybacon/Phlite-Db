@@ -35,6 +35,6 @@ extends Func {
             $cases[] = "ELSE {$else}";
         }
         return sprintf('CASE %s END%s', implode(' ', $cases),
-            $alias && $this->alias ? ' AS '.$compiler->quote($this->alias) : '');
+            $alias ? ' AS '.$compiler->quote($alias) : '');
     }
 }

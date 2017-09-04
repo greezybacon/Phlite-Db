@@ -350,7 +350,6 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
             if ($A instanceof Util\Aggregate) {
                 if (is_int($name))
                     $name = $A->getFieldName();
-                $A->setAlias($name);
             }
             $this->annotations[$name] = $A;
         }

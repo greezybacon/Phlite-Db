@@ -16,7 +16,7 @@ implements \IteratorAggregate {
         $stmt = $this->queryset->getQuery();
         $this->resource = $backend->getDriver($stmt);
         while ($row = $this->resource->fetchArray())
-            return $row;
+            yield $row;
 
         $this->resource->close();
     }

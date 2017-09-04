@@ -60,7 +60,7 @@ extends Func {
 
         return sprintf('%s(%s%s)%s', $this->func,
             $this->distinct ? 'DISTINCT ' : '', $field,
-            $alias && $this->alias ? ' AS '.$compiler->quote($this->alias) : '');
+            $alias ? ' AS '.$compiler->quote($alias) : '');
     }
 
     function getFieldName() {

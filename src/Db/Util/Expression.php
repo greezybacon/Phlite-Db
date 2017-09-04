@@ -22,9 +22,7 @@ namespace Phlite\Db\Util;
  * TODO: Add `evaluate` support for the SqlCompiler::evaluate method
  */
 class Expression {
-    var $alias;
-
-    function __construct($args) {
+    function __construct(...$args) {
         $this->args = $args;
     }
 
@@ -46,7 +44,7 @@ class Expression {
                     $O[] = sprintf($op, $field, $compiler->input($value));
             }
         }
-        return implode(' ', $O) . ($alias ? ' AS ' . $alias : '');
+        return implode(' ', $O) . ($alias ? ' AS ' . $compiler->quote($alias) : '');
     }
 
     // Allow $function->plus($something)
