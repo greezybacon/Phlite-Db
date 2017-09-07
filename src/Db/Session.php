@@ -88,7 +88,9 @@ class Session {
             throw new Exception\OrmError('Transaction not started');
 
         $rv = $this->transaction->commit();
-        unset($this->transaction);
+        if ($rv)
+            unset($this->transaction);
+
         return $rv;
     }
 

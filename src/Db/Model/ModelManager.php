@@ -3,7 +3,8 @@ namespace Phlite\Db\Model;
 
 use Phlite\Db\Router;
 
-class ModelManager {
+class ModelManager
+implements \Countable {
     protected $model;
     protected $backend;
 
@@ -28,6 +29,10 @@ class ModelManager {
 
     function __call($func, $args) {
         return $this->getQueryset()->$func(...$args);
+    }
+
+    function count($mode=COUNT_NORMAL) {
+        return $this->getQueryset()->count($mode);
     }
 
     protected function getCompiler(ModelBase $model) {

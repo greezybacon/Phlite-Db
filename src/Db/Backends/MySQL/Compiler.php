@@ -5,10 +5,12 @@ namespace Phlite\Db\Backends\MySQL;
 use Phlite\Db\Compile\Statement;
 use Phlite\Db\Compile\SqlCompiler;
 use Phlite\Db\Compile\CompiledExpression;
+use Phlite\Db\Exception;
 use Phlite\Db\Fields;
 use Phlite\Db\Manager;
 use Phlite\Db\Model\ModelBase;
 use Phlite\Db\Model\QuerySet;
+use Phlite\Db\Model\QuerysetView;
 use Phlite\Db\Util;
 
 class Compiler extends SqlCompiler {
@@ -66,7 +68,9 @@ class Compiler extends SqlCompiler {
         elseif ($b instanceof QuerySet
             && ($b->isWindowed() || $b->countSelectFields() > 1 || $b->chain)
         ) {
-            $f1 = $b->values[0];
+            if (count($b->values) < 1)
+                throw new Exception\OrmError('Did you forget to specify a column with ->values()?');
+            $f1 = array_values($b->values)[0];
             $view = $b->asView();
             $alias = $this->pushJoin($view, $a, $view, array('constraint'=>array()));
             return sprintf('%s = %s.%s', $a, $alias, $this->quote($f1));
@@ -139,7 +143,7 @@ class Compiler extends SqlCompiler {
             $join = ' LEFT'.$join;
         if (isset($this->joins[$tip]))
             $table = $this->joins[$tip]['alias'];
-        else
+        elseif (!$model instanceof QuerysetView)
             $table = $this->quote($model::getMeta('table'));
         foreach ($info['constraint'] as $local => $foreign) {
             list($rmodel) = $foreign;
@@ -154,9 +158,9 @@ class Compiler extends SqlCompiler {
         if (!isset($rmodel))
             $rmodel = $model;
         // Support inline views
-        $table = ($rmodel::getMeta('view'))
+        $table = ($rmodel instanceof QuerysetView)
             // XXX: Support parameters from the nested query
-            ? $rmodel::getQuery($this)
+            ? $rmodel->getSqlAddParams($this)
             : $this->quote($rmodel::getMeta('table'));
         $base = "{$join}{$table} {$alias}";
         return array($base, $constraints);

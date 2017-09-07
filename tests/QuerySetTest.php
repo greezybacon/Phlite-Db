@@ -97,4 +97,92 @@ extends \PHPUnit_Framework_TestCase {
         foreach ($big_guns as $bg)
             $this->assertTrue($bg->gross_sales > 20000);
     }
+
+    function testExists() {
+        // Anyone handling Seattle?
+        $seattle = Northwind\Employee::objects()
+            ->filter(['territories__territory__TerritoryDescription' => 'Seattle']);
+
+        // Looks like there is
+        $this->assertTrue($seattle->exists());
+
+        $seattle = Northwind\Employee::objects()
+            ->filter(['territories__territory__TerritoryDescription' => 'Podunk']);
+        // and a fetch
+        $this->assertFalse($seattle->exists(true));
+    }
+
+    function testLeftJoinPropagation() {
+        $total = count(Northwind\Employee::objects());
+        $handled = Northwind\Employee::objects()
+            ->annotate(['territory_count' => Util\Aggregate::COUNT('territories__territory__region')]);
+
+        // The regex searches for LEFT JOIN followed by JOIN not preceeded by LEFT
+        $this->assertNotRegexp('/LEFT JOIN .+? ((?<!LEFT )JOIN)/', (string) $handled,
+            'Does not propagate left joins in paths');
+        $this->assertEquals($total, count($handled));
+    }
+
+    function testSerialize() {
+        $nancy_sales = Northwind\Employee::objects()
+            ->filter(['EmployeeID' => 1])
+            ->aggregate(Util\Aggregate::SUM('sales__items__quantity'))
+            ->order_by('-sales__items__quantity')
+            ->values_flat()
+            ->limit(1);
+
+        $dat = serialize($nancy_sales);
+        $sales = unserialize($dat);
+
+        $this->assertNotNull($sales[0]);
+        $this->assertEquals($sales[0][0], 7812);
+    }
+
+    function testLimit() {
+        $sales = Northwind\Order::objects()
+            ->limit(10);
+
+        $this->assertCount(10, $sales);
+    }
+
+    function testOffset() {
+        $sales = Northwind\Order::objects()
+            ->order_by('OrderID')
+            ->offset(10)
+            ->limit(10);
+
+        $this->assertEquals(10258, $sales[0]->OrderID);
+    }
+
+    // Nested select queries ----------------------
+    function testNestedSelectInWhere() {
+        // Find the employee with the oldest order (by OrderDate)
+        $oldest = Northwind\Order::objects()
+            ->filter(['OrderDate' =>
+                Northwind\Order::objects()
+                    ->aggregate(Util\Aggregate::MIN('OrderDate'))
+            ])
+            ->select_related('employee');
+
+        $this->assertCount(1, $oldest);
+        $this->assertEquals(5, $oldest[0]->employee->EmployeeID);
+    }
+
+    function testNestSelectAsJoin() {
+        Northwind\Order::objects();
+    }
+
+    function testNestedSelectAsIn() {
+        // Orders from the top 5 suppliers
+        $big_5 = Northwind\Order::objects()
+            ->filter(['items__product__supplier__in' =>
+                Northwind\Supplier::objects()
+                    ->values('SupplierID')
+                    ->aggregate(['product_count' => Util\Aggregate::COUNT('products')])
+                    ->order_by('-product_count')
+                    ->limit(5)
+            ]);
+
+        $this->assertCount(5, $big_5);
+    }
 }

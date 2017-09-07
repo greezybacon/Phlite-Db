@@ -179,13 +179,20 @@ abstract class SqlCompiler {
         // Call pushJoin for each segment in the join path. A new JOIN
         // fragment will need to be emitted and/or cached
         $joins = array();
-        $push = function($p, $model) use (&$joins, &$path) {
+        $null = false;
+        $push = function($p, $model) use (&$joins, &$path, &$null) {
             $J = $model::getMeta('joins');
             if (!($info = $J[$p])) {
                 throw new Exception\OrmError(sprintf(
                    'Model `%s` does not have a relation called `%s`',
                     $model, $p));
             }
+            // Propogate LEFT joins through other joins. That is, if a
+            // multi-join expression is used, the first LEFT join should
+            // result in further joins also being LEFT
+            if (isset($info['null']))
+                $null = $null || $info['null'];
+            $info['null'] = $null;
             $crumb = $path;
             $path = ($path) ? "{$path}__{$p}" : $p;
             $joins[] = array($crumb, $path, $model, $info);
@@ -373,7 +380,7 @@ abstract class SqlCompiler {
                 Model\Queryset::OPT_NOSORT => !($what->limit || $what->offset))
             );
             $this->params = array_merge($this->params, $q->params);
-            return $q->sql;
+            return "($q->sql)";
         }
         elseif ($what instanceof Util\Expression) {
             return $what->toSql($this, $model);

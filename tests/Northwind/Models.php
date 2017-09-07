@@ -195,6 +195,14 @@ extends Model\ModelBase {
             'TerritoryID' => Fields\AutoIdField::class,
         ],
     ];
+
+    static function buildSchema(SchemaBuilder $b) {
+        $b->addFields([
+            'TerritoryID'   => new Fields\AutoIdField(['pk' => true]),
+            'TerritoryDescription' => new Fields\TextField(['length' => 50]),
+            'RegionID'      => new Fields\IntegerField(),
+        ]);
+    }
 }
 
 class Region
@@ -238,6 +246,29 @@ extends Model\ModelBase {
             'EmployeeID' => Fields\AutoIdField::class,
         ],
     ];
+
+    static function buildSchema(SchemaBuilder $b) {
+        $b->addFields([
+            'EmployeeID'    => new Fields\AutoIdField(['pk' => true]),
+            'LastName'      => new Fields\TextField(['length' => 20]),
+            'FirstName'     => new Fields\TextField(['length' => 10]),
+            'Title'         => new Fields\TextField(['length' => 30]),
+            'TitleOfCourtesy' => new Fields\TextField(['length' => 25]),
+            'BirthDate'     => new Fields\DatetimeField(),
+            'HireDate'      => new Fields\DatetimeField(),
+            'Address'       => new Fields\TextField(['length' => 60]),
+            'City'          => new Fields\TextField(['length' => 15]),
+            'Region'        => new Fields\TextField(['length' => 15]),
+            'PostalCode'    => new Fields\TextField(['length' => 10]),
+            'Country'       => new Fields\TextField(['length' => 15]),
+            'HomePhone'     => new Fields\TextField(['length' => 24]),
+            'Extension'     => new Fields\TextField(['length' => 4]),
+            'Photo'         => new Fields\BinaryField(),
+            'Notes'         => new Fields\TextField(['length' => 1<<16]),
+            'ReportsTo'     => new Fields\IntegerField(),
+            'PhotoPath'     => new Fields\TextField(['length'=> 255]),
+        ]);
+    }
 }
 
 class EmployeeTerritory
@@ -257,6 +288,14 @@ extends Model\ModelBase {
             'EmployeeID' => Fields\AutoIdField::class,
         ],
     ];
+
+    static function buildSchema(SchemaBuilder $b) {
+        $b->addFields([
+            'EmployeeID'    => new Fields\IntegerField(),
+            'TerritoryID'   => new Fields\IntegerField(),
+        ]);
+        $b->addConstraint(new Fields\PrimaryKey(['EmployeeID', 'TerritoryID']));
+    }
 }
 
 class Shipper

@@ -19,7 +19,6 @@ extends \PHPUnit_Framework_TestCase {
         $this->assertTrue($edge->save());
     }
 
-    // TODO: Test data in the overlay model
     function testOverlayCount() {
         $o1 = Northwind\Order::objects()->lookup(10248);
         $this->assertEquals($o1->items->count(), 3);

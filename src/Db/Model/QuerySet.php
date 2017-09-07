@@ -338,7 +338,7 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
      */
     function exists($fetch=false) {
         if ($fetch) {
-            return (bool) $this[0];
+            return (bool) @$this[0];
         }
         return $this->count() > 0;
     }
@@ -510,20 +510,7 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
      * subquery to be used as a JOIN.
      */
     function asView() {
-        $that = $this;
-        return new class extends ModelBase {
-            static $meta = array(
-                'view' => true,
-            );
-
-            static function getQuery($compiler) {
-                return ' ('.$that->getQuery().') ';
-            }
-
-            static function getSqlAddParams($compiler) {
-                return $that->toSql($compiler, $that->model);
-            }
-        };
+        return new QuerysetView($this);
     }
 
     function serialize() {
@@ -541,5 +528,21 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
         foreach ($data as $name => $val) {
             $this->{$name} = $val;
         }
+    }
+}
+
+class QuerysetView {
+    var $queryset;
+
+    function __construct(Queryset $qs) {
+        $this->queryset = $qs;
+    }
+
+    function getQuery($compiler) {
+        return $this->queryset->getQuery();
+    }
+
+    function getSqlAddParams($compiler) {
+        return $this->queryset->toSql($compiler, $this->queryset->model);
     }
 }
