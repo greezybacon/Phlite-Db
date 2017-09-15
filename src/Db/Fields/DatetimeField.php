@@ -23,7 +23,11 @@ extends Transform {
         return "CAST(STRFTIME('%Y', {$lhs}) AS INT)";
     }
 
-    function evaluate($rhs, $lhs=null) { return (int) strftime('%Y', $lhs); }
+    function evaluate($rhs, $lhs=null) {
+        if (is_string($lhs))
+            $lhs = strtotime($lhs);
+        return (int) strftime('%Y', $lhs);
+    }
 }
 
 DateTimeField::registerTransform(YearTransform::class);

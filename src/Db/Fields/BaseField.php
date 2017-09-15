@@ -113,7 +113,7 @@ abstract class BaseField {
     static function registerTransform($class, $name=false) {
         static::$transforms[$name ?: $class::$name] = [get_called_class(), $class];
     }
-    
+
     function getTransform($name, $lhs) {
         if (isset(static::$transforms[$name])) {
             list($type, $class) = static::$transforms[$name];
@@ -132,35 +132,60 @@ class ExactTransform
 extends Transform {
     static $name = 'exact';
     static $template = '%s = %s';
-    function evaluate($rhs, $lhs=null) { return $lhs == $rhs; }
+
+    function evaluate($rhs, $lhs=null) {
+        if ($this->lhs instanceof Transform)
+            $lhs = $this->lhs->evaluate(null, $lhs);
+        return $lhs == $rhs;
+    }
 }
 
 class LessTransform
 extends Transform {
     static $name = 'lt';
     static $template = '%s < %s';
-    function evaluate($rhs, $lhs=null) { return $lhs < $rhs; }
+
+    function evaluate($rhs, $lhs=null) {
+        if ($this->lhs instanceof Transform)
+            $lhs = $this->lhs->evaluate(null, $lhs);
+        return $lhs < $rhs;
+    }
 }
 
 class LessEqualTransform
 extends Transform {
     static $name = 'lte';
     static $template = '%s <= %s';
-    function evaluate($rhs, $lhs=null) { return $lhs <= $rhs; }
+
+    function evaluate($rhs, $lhs=null) {
+        if ($this->lhs instanceof Transform)
+            $lhs = $this->lhs->evaluate(null, $lhs);
+         return $lhs <= $rhs;
+    }
 }
 
 class GreaterTransform
 extends Transform {
     static $name = 'gt';
     static $template = '%s > %s';
-    function evaluate($rhs, $lhs=null) { return $lhs > $rhs; }
+
+    function evaluate($rhs, $lhs=null) {
+        if ($this->lhs instanceof Transform)
+            $lhs = $this->lhs->evaluate(null, $lhs);
+         return $lhs > $rhs;
+    }
 }
 
 class GreaterEqualTransform
 extends Transform {
     static $name = 'gte';
     static $template = '%s >= %s';
-    function evaluate($rhs, $lhs=null) { return $lhs >= $rhs; }
+
+    function evaluate($rhs, $lhs=null) {
+        if ($this->lhs instanceof Transform)
+            $lhs = $this->lhs->evaluate(null, $lhs);
+         return $lhs >= $rhs;
+    }
 }
 
 class IsNullTransform
@@ -172,14 +197,19 @@ extends Transform {
         $rhs = $rhs ? 'IS NULL' : 'IS NOT NULL';
         return "{$lhs} $rhs";
     }
-    function evaluate($rhs, $lhs=null) { return is_null($lhs) == $rhs; }
+
+    function evaluate($rhs, $lhs=null) {
+        if ($this->lhs instanceof Transform)
+            $lhs = $this->lhs->evaluate(null, $lhs);
+         return is_null($lhs) == $rhs;
+    }
 }
 
 class InTransform
 extends Transform {
     static $name = 'in';
     static $template = '%s IN %s';
-    
+
     function buildRhs($compiler, $model, $rhs) {
         if (is_array($rhs)) {
             $vals = array_map(array($compiler, 'input'), $rhs);
@@ -189,7 +219,7 @@ extends Transform {
             return parent::buildRhs($compiler, $model, $rhs);
         }
     }
-    
+
     function toSql($compiler, $model, $rhs) {
         // MySQL is almost always faster with a join. Use one if possible
         // MySQL doesn't support LIMIT or OFFSET in subqueries. Instead, add
@@ -208,11 +238,32 @@ extends Transform {
         }
         return parent::toSql($compiler, $model, $rhs);
     }
-    
+
     function evaluate($rhs, $lhs=null) {
+        if ($this->lhs instanceof Transform)
+            $lhs = $this->lhs->evaluate(null, $lhs);
+
         // Array
         if (is_array($rhs))
             return in_array($lhs, $rhs);
+    }
+}
+
+class RangeTransform
+extends Transform {
+    static $name = 'range';
+    static $template = '%s BETWEEN %s';
+
+    function buildRhs($compiler, $model, $rhs) {
+        if (!is_array($rhs) || count($rhs) != 2) {
+            throw new Exception\QueryError('Range must be array of two items');
+        }
+        return sprintf('%s AND %s',
+            $compiler->input($rhs[0]), $compiler->input($rhs[1]));
+    }
+
+    function evaluate($rhs, $lhs=null) {
+        return $lhs >= $rhs[0] && $lhs <= $rhs[1];
     }
 }
 

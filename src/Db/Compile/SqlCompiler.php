@@ -17,10 +17,6 @@ abstract class SqlCompiler {
     protected $params = array();
     protected $conn;
 
-    static $operators = array(
-        'exact' => '%$1s = %$2s'
-    );
-
     function __construct(Backend $conn, $options=false) {
         if ($options)
             $this->options = array_merge($this->options, $options);
@@ -37,14 +33,7 @@ abstract class SqlCompiler {
      * Split a criteria item into the identifying pieces: path, field, and
      * operator.
      */
-    static function splitCriteria($criteria) {
-        static $operators = array(
-            'exact' => 1, 'isnull' => 1,
-            'gt' => 1, 'lt' => 1, 'gte' => 1, 'lte' => 1, 'range' => 1,
-            'contains' => 1, 'like' => 1, 'startswith' => 1, 'endswith' => 1, 'regex' => 1,
-            'in' => 1, 'intersect' => 1,
-            'hasbit' => 1,
-        );
+    static function splitTransform($criteria) {
         $path = explode('__', $criteria);
         $operator = false;
         if (!isset($options['table'])) {
@@ -55,6 +44,28 @@ abstract class SqlCompiler {
             }
         }
         return array($field, $path, $operator ?: 'exact');
+    }
+
+    /**
+     * Split a path for a model object into several pieces:
+     *
+     *   (1) Object to which the path points
+     *   (2) Model on which (1) is defined
+     *   (3) Field on (2) represented by (1)
+     *   (4) Remaining path (not consumed walking to (1))
+     */
+    static function splitPath(array $path, $model) {
+        $current = $model;
+        $prev = $field = null;
+        while (count($path)) {
+            $P = $path[0];
+            if (!isset($current->$P))
+                break;
+            $prev = $current;
+            $current = $current->$P;
+            $field = array_shift($path);
+        }
+        return [$current, $prev, $field, $path];
     }
 
     /**
@@ -74,36 +85,15 @@ abstract class SqlCompiler {
      * Throws:
      * OrmException - if $operator is not supported     *
      */
-    static function evaluate($record, $field, $check) {
-        static $ops; if (!isset($ops)) { $ops = array(
-            'exact' => function($a, $b) { return is_string($a) ? strcasecmp($a, $b) == 0 : $a == $b; },
-            'isnull' => function($a, $b) { return is_null($a) == $b; },
-            'gt' => function($a, $b) { return $a > $b; },
-            'gte' => function($a, $b) { return $a >= $b; },
-            'lt' => function($a, $b) { return $a < $b; },
-            'lte' => function($a, $b) { return $a <= $b; },
-            'range' => function($a, $b) { return $a >= $b[0] && $a <= $b[1]; },
-            'contains' => function($a, $b) { return stripos($a, $b) !== false; },
-            'startswith' => function($a, $b) { return stripos($a, $b) === 0; },
-            'endswith' => function($a, $b) { return $b === '' || strcasecmp(substr($a, -strlen($b))) === 0; },
-            'regex' => function($a, $b) { return preg_match("/$a/iu", $b); },
-            'hasbit' => function($a, $b) { return ($a & $b) == $b; },
-        ); }
-        list($field, $path, $operator) = static::splitCriteria($field);
-        if (!isset($ops[$operator]))
-            throw new Exception\OrmError($operator.': Unsupported operator');
-
-        if ($record instanceof Model\ModelBase) {
-            if ($path)
-                $record = $record->getByPath($path);
-            $field = $record->get($field);
+    static function evaluate(Model\ModelBase $record, $field, $check) {
+        $path = explode('__', $field);
+        list($value, $model, $transform, $path) = static::splitPath($path, $record);
+        $field = $model::getMeta()->getField($transform);
+        $path = $path ?: ['exact'];
+        foreach ($path as $P) {
+            $field = $transform = $field->getTransform($P, $transform);
         }
-        else {
-            $field = $record[$field];
-        }
-
-        //var_dump($operator, $field, $check);
-        return $ops[$operator]($field, $check);
+        return $transform->evaluate($check, $value);
     }
 
     /**
@@ -128,28 +118,10 @@ abstract class SqlCompiler {
      * therefore prevent multiple joins to the same table for the same
      * reason. (Self joins are still supported).
      *
-     * Comparison functions supported by this function are defined for each
-     * respective SqlCompiler subclass; however at least these functions
-     * should be defined:
+     * Comparison functions supported by this function are defined are
+     * defined as Transforms and are registered to respective Field classes
      *
-     *      function    a__function => b
-     *      ----------+------------------------------------------------
-     *      exact     | a is exactly equal to b
-     *      gt        | a is greater than b
-     *      lte       | b is greater than a
-     *      lt        | a is less than b
-     *      gte       | b is less than a
-     *      ----------+------------------------------------------------
-     *      contains  | (string) b is contained within a
-     *      statswith | (string) first len(b) chars of a are exactly b
-     *      endswith  | (string) last len(b) chars of a are exactly b
-     *      like      | (string) a matches pattern b
-     *      ----------+------------------------------------------------
-     *      in        | a is in the list or the nested queryset b
-     *      ----------+------------------------------------------------
-     *      isnull    | a is null (if b) else a is not null
-     *
-     * If no comparison function is declared in the field descriptor,
+     * If no transform function is declared in the field descriptor,
      * 'exact' is assumed.
      *
      * Parameters:
@@ -169,15 +141,15 @@ abstract class SqlCompiler {
 
         // Find the model with the field in question
         list($model, $alias, $path) = $this->explodePath($path, $model);
-        
+
         // Process the transform part of the path
         list($transform, $field) = $this->getFieldTransform($path, $model, $alias);
-        
+
         // Note: $alias could be removed here and fetched with a ::getAlias($model)
         // method
         return [$field, $model, $transform, $alias];
     }
-    
+
     function explodePath(array $path, $model) {
         // Walk the $path
         $null = false;
@@ -197,7 +169,7 @@ abstract class SqlCompiler {
             if (isset($info['null']))
                 $null = $null || $info['null'];
             $info['null'] = $null;
-    
+
             $tip = $leading;
             $leading = $leading ? "{$leading}__{$next}" : $next;
             $alias = $this->pushJoin($tip, $leading, $model, $info);
@@ -227,14 +199,14 @@ abstract class SqlCompiler {
         elseif (isset($tail)) {
             $path = [$tail];
         }
-        
+
         // If no join was followed, use the root model alias
         if (!isset($alias))
             $alias = $this->joins['']['alias'];
-        
+
         return [$model, $alias, $path];
     }
-    
+
     function getFieldTransform(array $path, $model, $alias) {
         $field_name = array_shift($path);
 
@@ -247,9 +219,9 @@ abstract class SqlCompiler {
         else {
             throw new Exception\OrmError(sprintf(
                'Model `%s` does not have a relation called `%s`',
-                $model, $field_name));   
+                $model, $field_name));
         }
-        
+
         if (!$path)
             $path = ['exact'];
 
@@ -361,7 +333,7 @@ abstract class SqlCompiler {
                     $filter[] = sprintf('%s IS NULL', $field);
                 else
                     $filter[] = $transform->toSql($this, $model, $value);
-                
+
                 if ($transform->isAggregate())
                     $type = CompiledExpression::TYPE_HAVING;
             }

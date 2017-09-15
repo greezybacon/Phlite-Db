@@ -47,13 +47,15 @@ extends Transform {
 class ContainsTransform
 extends LikeTransform {
     static $name = 'contains';
-    
+
     function toSql($compiler, $model, $rhs) {
         $rhs = $this->like_escape($rhs);
         return parent::toSql($compiler, $model, "%{$rhs}%");
-    }    
+    }
 
-    function evaluate($rhs, $lhs=null) { return stripos($lhs, $rhs) !== false; }
+    function evaluate($rhs, $lhs=null) {
+        return stripos($lhs, $rhs) !== false;
+    }
 }
 
 class StartswithTransform
@@ -65,7 +67,9 @@ extends LikeTransform {
         return parent::toSql($compiler, $model, "{$rhs}%");
     }
 
-    function evaluate($rhs, $lhs=null) { return stripos($lhs, $rhs) !== false; }
+    function evaluate($rhs, $lhs=null) {
+        return stripos($lhs, $rhs) !== false;
+    }
 }
 
 class EndswithTransform
@@ -77,7 +81,10 @@ extends LikeTransform {
         return parent::toSql($compiler, $model, "%{$rhs}");
     }
 
-    function evaluate($rhs, $lhs=null) { return $rhs === '' || strcasecmp(substr($lhs, -strlen($rhs))) === 0; }
+    function evaluate($rhs, $lhs=null) {
+        return $rhs === ''
+            || strcasecmp(substr($lhs, -strlen($rhs)), $rhs) === 0;
+    }
 }
 
 class RegexTransform
@@ -92,7 +99,11 @@ extends Transform {
         return parent::toSql($compiler, $model, $rhs);
     }
 
-    function evaluate($rhs, $lhs=null) { return preg_match("/$lhs/iu", $rhs); }
+    function evaluate($rhs, $lhs=null) {
+        if ($rhs[0] == '/')
+            $rhs = preg_replace('`/[^/]*$`', '', substr($rhs, 1));
+        return preg_match("/$rhs/iu", $lhs);
+    }
 }
 
 TextField::registerTransform(ContainsTransform::class);
