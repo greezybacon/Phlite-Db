@@ -1,9 +1,9 @@
 <?php
-
 namespace Phlite\Db\Fields;
 
 use Phlite\Db\Backend;
 use Phlite\Db\Compile\SqlCompiler;
+use Phlite\Db\Exception;
 use Phlite\Text;
 
 class JSONField

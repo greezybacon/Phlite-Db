@@ -3,6 +3,9 @@ namespace Phlite\Db\Fields;
 
 use Phlite\Db\Backend;
 use Phlite\Db\Compile\SqlCompiler;
+use Phlite\Db\Compile\Transform;
+use Phlite\Db\Exception;
+use Phlite\Db\Model;
 
 abstract class BaseField {
     static $defaults = array(
@@ -10,6 +13,8 @@ abstract class BaseField {
         'default' => null,
         'pk' => false,
     );
+    static $transforms;
+
     var $options;
 
     function __construct(array $options=array()) {
@@ -100,4 +105,121 @@ abstract class BaseField {
     function getCreateSql($name, $compiler) {
         return $compiler->visit($this);
     }
+
+    // Transforms interface -----------------------------------
+    /**
+     * Register a transform/lookup for a field and all its subclasses.
+     */
+    static function registerTransform($class, $name=false) {
+        static::$transforms[$name ?: $class::$name] = [get_called_class(), $class];
+    }
+    
+    function getTransform($name, $lhs) {
+        if (isset(static::$transforms[$name])) {
+            list($type, $class) = static::$transforms[$name];
+            // Transforms only apply to the field on which it was registered
+            // and all subclasses.
+            if ($this instanceof $type)
+                return new $class($lhs);
+        }
+
+        throw new Exception\QueryError("$name: No such transform for type: ".get_class($this));
+    }
 }
+
+// Load standard transforms
+class ExactTransform
+extends Transform {
+    static $name = 'exact';
+    static $template = '%s = %s';
+    function evaluate($rhs, $lhs=null) { return $lhs == $rhs; }
+}
+
+class LessTransform
+extends Transform {
+    static $name = 'lt';
+    static $template = '%s < %s';
+    function evaluate($rhs, $lhs=null) { return $lhs < $rhs; }
+}
+
+class LessEqualTransform
+extends Transform {
+    static $name = 'lte';
+    static $template = '%s <= %s';
+    function evaluate($rhs, $lhs=null) { return $lhs <= $rhs; }
+}
+
+class GreaterTransform
+extends Transform {
+    static $name = 'gt';
+    static $template = '%s > %s';
+    function evaluate($rhs, $lhs=null) { return $lhs > $rhs; }
+}
+
+class GreaterEqualTransform
+extends Transform {
+    static $name = 'gte';
+    static $template = '%s >= %s';
+    function evaluate($rhs, $lhs=null) { return $lhs >= $rhs; }
+}
+
+class IsNullTransform
+extends Transform {
+    static $name = 'isnull';
+
+    function toSql($compiler, $model, $rhs) {
+        $lhs = $this->buildLhs($compiler, $model);
+        $rhs = $rhs ? 'IS NULL' : 'IS NOT NULL';
+        return "{$lhs} $rhs";
+    }
+    function evaluate($rhs, $lhs=null) { return is_null($lhs) == $rhs; }
+}
+
+class InTransform
+extends Transform {
+    static $name = 'in';
+    static $template = '%s IN %s';
+    
+    function buildRhs($compiler, $model, $rhs) {
+        if (is_array($rhs)) {
+            $vals = array_map(array($compiler, 'input'), $rhs);
+            return '('.implode(', ', $vals).')';
+        }
+        else {
+            return parent::buildRhs($compiler, $model, $rhs);
+        }
+    }
+    
+    function toSql($compiler, $model, $rhs) {
+        // MySQL is almost always faster with a join. Use one if possible
+        // MySQL doesn't support LIMIT or OFFSET in subqueries. Instead, add
+        // the query as a JOIN and add the join constraint into the WHERE
+        // clause.
+        if ($rhs instanceof Model\QuerySet
+            && ($rhs->isWindowed() || $rhs->countSelectFields() > 1 || $rhs->chain)
+        ) {
+            if (count($rhs->values) < 1)
+                throw new Exception\OrmError('Did you forget to specify a column with ->values()?');
+            $f1 = array_values($rhs->values)[0];
+            $view = $rhs->asView();
+            $lhs = $this->buildLhs($compiler, $model);
+            $alias = $compiler->pushJoin(spl_object_hash($view), $lhs, $view, array('constraint'=>array()));
+            return sprintf('%s = %s.%s', $lhs, $alias, $compiler->quote($f1));
+        }
+        return parent::toSql($compiler, $model, $rhs);
+    }
+    
+    function evaluate($rhs, $lhs=null) {
+        // Array
+        if (is_array($rhs))
+            return in_array($lhs, $rhs);
+    }
+}
+
+BaseField::registerTransform(ExactTransform::class);
+BaseField::registerTransform(GreaterTransform::class);
+BaseField::registerTransform(GreaterEqualTransform::class);
+BaseField::registerTransform(LessTransform::class);
+BaseField::registerTransform(LessEqualTransform::class);
+BaseField::registerTransform(IsNullTransform::class);
+BaseField::registerTransform(InTransform::class);

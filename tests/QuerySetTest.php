@@ -126,8 +126,8 @@ extends \PHPUnit_Framework_TestCase {
     function testSerialize() {
         $nancy_sales = Northwind\Employee::objects()
             ->filter(['EmployeeID' => 1])
-            ->aggregate(Util\Aggregate::SUM('sales__items__quantity'))
-            ->order_by('-sales__items__quantity')
+            ->aggregate(Util\Aggregate::SUM('sales__items__Quantity'))
+            ->order_by('-sales__items__Quantity')
             ->values_flat()
             ->limit(1);
 

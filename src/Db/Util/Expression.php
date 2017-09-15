@@ -1,6 +1,7 @@
 <?php
-
 namespace Phlite\Db\Util;
+
+use Phlite\Db\Fields;
 
 /**
  * Base expression class for SQL expressions in ORM queries. Expressions are
@@ -22,6 +23,8 @@ namespace Phlite\Db\Util;
  * TODO: Add `evaluate` support for the SqlCompiler::evaluate method
  */
 class Expression {
+    protected $args;
+
     function __construct(...$args) {
         // One day—probably not—but maybe one day, PHP will support keyword
         // arguments
@@ -41,14 +44,16 @@ class Expression {
                 $O[] = $ex->text;
             }
             else {
-                list($field, $op) = $compiler->getField($field, $model);
-                if (is_callable($op))
-                    $O[] = call_user_func($op, $field, $value, $model);
-                else
-                    $O[] = sprintf($op, $field, $compiler->input($value));
+                list($field, , $transform) = $compiler->getField($field, $model);
+                $O[] = $transform->toSql($compiler, $model, $value);
             }
         }
         return implode(' ', $O) . ($alias ? ' AS ' . $compiler->quote($alias) : '');
+    }
+    
+    function getTransform($name, $field) {
+        $f = new Fields\IntegerField();
+        return $f->getTransform($name, $this);
     }
 
     // Allow $function->plus($something)

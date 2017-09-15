@@ -312,8 +312,7 @@ class Compiler extends SqlCompiler {
                     $full_path .= $field;
                     $parts[] = $field;
                     $theseFields = array();
-                    list($alias, $fmodel) = $this->getField($full_path, $model,
-                        array('table'=>true, 'model'=>true));
+                    list($fmodel, $alias) = $this->explodePath($parts, $model);
                     foreach ($fmodel::getMeta()->getFieldNames() as $f) {
                         // Handle deferreds
                         if (isset($defer[$sr . '__' . $f]))

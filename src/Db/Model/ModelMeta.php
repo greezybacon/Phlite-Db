@@ -349,6 +349,11 @@ implements \ArrayAccess {
         $fields = $this->getFields();
         return $fields[$name];
     }
+    
+    function hasField($name) {
+        $fields = $this->getFields();
+        return isset($fields[$name]);
+    }
 
     /**
      * Fetch the column names of the table used to persist instances of this

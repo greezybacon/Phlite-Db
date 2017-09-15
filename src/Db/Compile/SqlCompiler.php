@@ -153,87 +153,119 @@ abstract class SqlCompiler {
      * 'exact' is assumed.
      *
      * Parameters:
-     * $field - (string) name of the field to join
+     * $path - (string) name of the field to join
      * $model - (VerySimpleModel) root model for references in the $field
      *      parameter
-     * $options - (array) extra options for the compiler
-     *      'table' => return the table alias rather than the field-name
-     *      'model' => return the target model class rather than the operator
      *
      * Returns:
-     * (mixed) Usually array<field-name, operator> where field-name is the
-     * name of the field in the destination model, and operator is the
-     * requestion comparison method.
+     * 4-tuple [$field, $model, $transform, $alias], where field is the
+     * compiled text, $model is the foreign model determined from the path,
+     * $transform is the lookup mechanism to be used to form the comparison,
+     * and $alias is the table alias of the foreign model in the query.
      */
-    function getField($field, $model, $options=array()) {
-        // Break apart the field descriptor by __ (double-underbars). The
-        // first part is assumed to be the root field in the given model.
-        // The parts after each of the __ pieces are links to other tables.
-        // The last item (after the last __) is allowed to be an operator
-        // specifiction.
-        list($field, $parts, $op) = static::splitCriteria($field);
-        $operator = static::$operators[$op];
-        $path = '';
-        $rootModel = $model;
+    function getField($path, $model) {
+        if (is_string($path))
+            $path = explode('__', $path);
 
-        // Call pushJoin for each segment in the join path. A new JOIN
-        // fragment will need to be emitted and/or cached
-        $joins = array();
+        // Find the model with the field in question
+        list($model, $alias, $path) = $this->explodePath($path, $model);
+        
+        // Process the transform part of the path
+        list($transform, $field) = $this->getFieldTransform($path, $model, $alias);
+        
+        // Note: $alias could be removed here and fetched with a ::getAlias($model)
+        // method
+        return [$field, $model, $transform, $alias];
+    }
+    
+    function explodePath(array $path, $model) {
+        // Walk the $path
         $null = false;
-        $push = function($p, $model) use (&$joins, &$path, &$null) {
+        $leading = '';
+        while (count($path)) {
+            $next = $path[0];
+
             $J = $model::getMeta('joins');
-            if (!($info = $J[$p])) {
-                throw new Exception\OrmError(sprintf(
-                   'Model `%s` does not have a relation called `%s`',
-                    $model, $p));
-            }
+            if (!isset($J[$next]))
+                break;
+
+            $info = $J[$next];
+
             // Propogate LEFT joins through other joins. That is, if a
             // multi-join expression is used, the first LEFT join should
             // result in further joins also being LEFT
             if (isset($info['null']))
                 $null = $null || $info['null'];
             $info['null'] = $null;
-            $crumb = $path;
-            $path = ($path) ? "{$path}__{$p}" : $p;
-            $joins[] = array($crumb, $path, $model, $info);
+    
+            $tip = $leading;
+            $leading = $leading ? "{$leading}__{$next}" : $next;
+            $alias = $this->pushJoin($tip, $leading, $model, $info);
+
             // Roll to foreign model
-            return $info['fkey'];
-        };
-
-        foreach ($parts as $i=>$p) {
-            list($model) = $push($p, $model);
+            list($model, $tail) = $info['fkey'];
+            array_shift($path);
         }
-
-        // If comparing a relationship, join the foreign table
-        // This is a comparison with a relationship — use the foreign key
-        $J = $model::getMeta('joins');
-        if (isset($J[$field])) {
-            list($model, $field) = $push($field, $model);
+        // There are two reasons to arrive here:
+        // (1) the next item in the path does not represent a join. In this
+        // case, we need to make sure the next item in the path represenets
+        // a field on the model
+        if (count($path) > 0) {
+            if (!$model::getMeta()->hasField($path[0])) {
+                // Use the $tail, if possible
+                if (isset($tail) && $model::getMeta()->hasField($tail)) {
+                    array_unshift($path, $tail);
+                }
+                // If it's an annotation, that's ok
+                elseif (!isset($this->annotations[$path[0]])) {
+                    throw new \Exception('Bad news dood');
+                }
+            }
         }
-
-        // Apply the joins list to $this->pushJoin
-        foreach ($joins as $i=>$A) {
-            $alias = $this->pushJoin($A[0], $A[1], $A[2], $A[3]);
+        // (2) the path is empty. In this case, a field for the transform
+        // needs to be specified.
+        elseif (isset($tail)) {
+            $path = [$tail];
         }
+        
+        // If no join was followed, use the root model alias
+        if (!isset($alias))
+            $alias = $this->joins['']['alias'];
+        
+        return [$model, $alias, $path];
+    }
+    
+    function getFieldTransform(array $path, $model, $alias) {
+        $field_name = array_shift($path);
 
-        if (!isset($alias)) {
-            // Determine the alias for the root model table
-            $alias = (isset($this->joins['']))
-                ? $this->joins['']['alias']
-                : $this->quote($rootModel::getMeta('table'));
+        if (isset($this->annotations[$field_name])) {
+            $field = $field_name = $this->annotations[$field_name];
         }
+        elseif ($field = $model::getMeta()->getField($field_name)) {
+            $field_name = "{$alias}.".$this->quote($field_name);
+        }
+        else {
+            throw new Exception\OrmError(sprintf(
+               'Model `%s` does not have a relation called `%s`',
+                $model, $field_name));   
+        }
+        
+        if (!$path)
+            $path = ['exact'];
 
-        if (isset($options['table']) && $options['table'])
-            $field = $alias;
-        elseif (isset($this->annotations[$field]))
-            $field = $this->annotations[$field];
-        elseif ($alias)
-            $field = $alias.'.'.$this->quote($field);
-        else
-            $field = $this->quote($field);
-        if (isset($options['model']) && $options['model'])
-            $operator = $model;
-        return array($field, $operator);
+        $transform = $field_name;
+        while (count($path)) {
+            // This might look a bit cryptic. Basically, the first transform
+            // should be based on the $field and the field_name. The subsequent
+            // ones should become nested transforms.
+            $field = $transform = $field->getTransform($path[0], $transform);
+            array_shift($path);
+
+            // TODO: If the transform is a pseudo field (like year), then add 
+            // `exact` to the path and continue.
+        }
+        
+        return [$transform, $field_name];
     }
 
     /**
@@ -324,22 +356,14 @@ abstract class SqlCompiler {
             }
             // Handle simple field = <value> constraints
             else {
-                list($field, $op) = $this->getField($field, $model);
-                if ($field instanceof Util\Aggregate) {
-                    // This constraint has to go in the HAVING clause
-                    $field = $field->toSql($this, $model);
-                    $type = CompiledExpression::TYPE_HAVING;
-                }
+                list($field, $model, $transform, ) = $this->getField($field, $model);
                 if ($value === null)
                     $filter[] = sprintf('%s IS NULL', $field);
-                elseif ($value instanceof Util\Field)
-                    $filter[] = sprintf($op, $field, $value->toSql($this, $model));
-                // Allow operators to be callable rather than sprintf
-                // strings
-                elseif (is_callable($op))
-                    $filter[] = call_user_func($op, $field, $value, $model);
                 else
-                    $filter[] = sprintf($op, $field, $this->input($value, $model));
+                    $filter[] = $transform->toSql($this, $model, $value);
+                
+                if ($transform->isAggregate())
+                    $type = CompiledExpression::TYPE_HAVING;
             }
         }
         $glue = $Q->isOred() ? ' OR ' : ' AND ';

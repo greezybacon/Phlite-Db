@@ -25,8 +25,6 @@ extends Func {
     }
 
     function toSql($compiler, $model=false, $alias=false) {
-        $options = array('constraint' => $this->constraint, 'model' => true);
-
         // For DISTINCT, require a field specification — not a relationship
         // specification.
         $E = $this->expr;
@@ -34,7 +32,7 @@ extends Func {
             $field = $E->toSql($compiler, $model);
         }
         else {
-            list($field, $rmodel) = $compiler->getField($E, $model, $options);
+            list($field, $rmodel) = $compiler->getField($E, $model);
             if ($this->distinct) {
                 $pk = false;
                 $fpk  = $rmodel::getMeta('pk');
