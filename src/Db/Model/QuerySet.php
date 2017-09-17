@@ -305,10 +305,10 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
         return $this->_count = $row[0];
     }
 
-    function toSql($compiler, $model, $alias=false) {
+    function toSql($compiler, $model, $alias=false, $options=array()) {
         // FIXME: Force root model of the compiler to $model
         $exec = $this->getQuery(array('compiler' => get_class($compiler),
-             'parent' => $compiler, 'subquery' => true));
+             'parent' => $compiler, 'subquery' => true) + $options);
         // Rewrite the parameter numbers so they fit the parameter numbers
         // of the current parameters of the $compiler
         $sql = preg_replace_callback("/:(\d+)/",
@@ -391,8 +391,8 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
         return $this;
     }
 
-    protected function getCompiler() {
-        return $this->getBackend()->getCompiler();
+    protected function getCompiler($options=false) {
+        return $this->getBackend()->getCompiler($options);
     }
 
     /**
@@ -501,7 +501,7 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
         if (!$query->defer && $model::getMeta('defer'))
             $query->defer = $model::getMeta('defer');
 
-        $compiler = $this->getCompiler();
+        $compiler = $this->getCompiler($options);
         return $this->query = $compiler->compileSelect($query);
     }
 
@@ -539,7 +539,7 @@ class QuerysetView {
     }
 
     function getQuery($compiler) {
-        return $this->queryset->getQuery();
+        return $this->queryset->getQuery(['subquery' => true]);
     }
 
     function getSqlAddParams($compiler) {

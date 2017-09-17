@@ -62,6 +62,17 @@ extends \PHPUnit_Framework_TestCase {
         );
     }
 
+    function testRangeTransform() {
+        $this->assertCount(144,
+            Northwind\Order::objects()
+                ->filter(['Freight__range' => [20, 40]])
+        );
+        $this->assertCount(144,
+            Northwind\Order::objects()->all()
+                ->findAll(['Freight__range' => [20, 40]])
+        );
+    }
+
     function testContainsTransform() {
         $this->assertCount(122,
             Northwind\Order::objects()
@@ -122,9 +133,6 @@ extends \PHPUnit_Framework_TestCase {
             Northwind\Order::objects()
                 ->filter(['OrderDate__year__exact' => 1996])
         );
-        print Northwind\Order::objects()
-            ->filter(['OrderDate__year__exact' => 1996]);
-
         $this->assertCount(152,
             Northwind\Order::objects()->all()
                 ->findAll(['OrderDate__year__exact' => 1996])

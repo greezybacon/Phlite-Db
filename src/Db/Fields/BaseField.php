@@ -63,7 +63,7 @@ abstract class BaseField {
     }
 
     /**
-     * Get a presentation of the field value to use in a join constraint. 
+     * Get a presentation of the field value to use in a join constraint.
      * Normally this is just the field name itself, but some more complex 
      * fields might need to utilize a database function or something to get
      * a correct value for joins.
@@ -263,6 +263,12 @@ extends Transform {
     }
 
     function evaluate($rhs, $lhs=null) {
+        if ($this->lhs instanceof Transform)
+            $lhs = $this->lhs->evaluate(null, $lhs);
+
+        if (count($rhs) != 2)
+            throw new Exception\QueryError('Range must be array of two items');
+
         return $lhs >= $rhs[0] && $lhs <= $rhs[1];
     }
 }
@@ -274,3 +280,4 @@ BaseField::registerTransform(LessTransform::class);
 BaseField::registerTransform(LessEqualTransform::class);
 BaseField::registerTransform(IsNullTransform::class);
 BaseField::registerTransform(InTransform::class);
+BaseField::registerTransform(RangeTransform::class);

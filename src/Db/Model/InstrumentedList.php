@@ -46,18 +46,20 @@ implements \JsonSerializable {
     }
 
     function remove($object, $delete=true) {
-        if ($delete)
-            if (!$object->delete())
-                return false;
-        else
+        if ($delete && !$object->delete()) {
+            return false;
+        }
+        else {
             foreach ($this->key as $field=>$value)
                 $object->set($field, null);
-
+        }
         // Seems like the object should be removed from ->storage
-        foreach ($this as $k=>$v)
-            if ($v === $object)
+        foreach ($this as $k=>$v) {
+            if ($v === $object) {
                 unset($this[$k]);
-
+                break;
+            }
+        }
         return true;
     }
 

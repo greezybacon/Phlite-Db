@@ -14,105 +14,6 @@ use Phlite\Db\Model\QuerysetView;
 use Phlite\Db\Util;
 
 class Compiler extends SqlCompiler {
-
-    protected $input_join_count = 0;
-    protected $conn;
-
-    static $operators = array(
-        'exact' => '%1$s = %2$s',
-        'contains' => array('self', '__contains'),
-        'startswith' => array('self', '__startswith'),
-        'endswith' => array('self', '__endswith'),
-        'regex' => array('self', '__regex'),
-        'gt' => '%1$s > %2$s',
-        'lt' => '%1$s < %2$s',
-        'gte' => '%1$s >= %2$s',
-        'lte' => '%1$s <= %2$s',
-        'isnull' => array('self', '__isnull'),
-        'like' => '%1$s LIKE %2$s',
-        'hasbit' => '%1$s & %2$s != 0',
-        'in' => array('self', '__in'),
-        'intersect' => array('self', '__find_in_set'),
-        'range' => array('self', '__between'),
-    );
-
-    // Thanks, http://stackoverflow.com/a/3683868
-    function like_escape($what, $e='\\') {
-        return str_replace(array($e, '%', '_'), array($e.$e, $e.'%', $e.'_'), $what);
-    }
-
-    function __contains($a, $b) {
-        # {%a} like %{$b}%
-        # Escape $b
-        $b = $this->like_escape($b);
-        return sprintf('%s LIKE %s', $a, $this->input("%$b%"));
-    }
-    function __startswith($a, $b) {
-        $b = $this->like_escape($b);
-        return sprintf('%s LIKE %s', $a, $this->input("$b%"));
-    }
-    function __endswith($a, $b) {
-        $b = $this->like_escape($b);
-        return sprintf('%s LIKE %s', $a, $this->input("%$b"));
-    }
-
-    function __in($a, $b) {
-        if (is_array($b)) {
-            $vals = array_map(array($this, 'input'), $b);
-            $b = '('.implode(', ', $vals).')';
-        }
-        // MySQL is almost always faster with a join. Use one if possible
-        // MySQL doesn't support LIMIT or OFFSET in subqueries. Instead, add
-        // the query as a JOIN and add the join constraint into the WHERE
-        // clause.
-        elseif ($b instanceof QuerySet
-            && ($b->isWindowed() || $b->countSelectFields() > 1 || $b->chain)
-        ) {
-            if (count($b->values) < 1)
-                throw new Exception\OrmError('Did you forget to specify a column with ->values()?');
-            $f1 = array_values($b->values)[0];
-            $view = $b->asView();
-            $alias = $this->pushJoin($view, $a, $view, array('constraint'=>array()));
-            return sprintf('%s = %s.%s', $a, $alias, $this->quote($f1));
-        }
-        else {
-            $b = $this->input($b);
-        }
-        return sprintf('%s IN %s', $a, $b);
-    }
-
-    function __regex($a, $b) {
-        // Strip slashes and options
-        if ($b[0] == '/')
-            $b = preg_replace('`/[^/]*$`', '', substr($b, 1));
-        return sprintf('%s REGEXP %s', $a, $this->input($b));
-    }
-
-    function __isnull($a, $b) {
-        return $b
-            ? sprintf('%s IS NULL', $a)
-            : sprintf('%s IS NOT NULL', $a);
-    }
-
-    function __find_in_set($a, $b) {
-        if (is_array($b)) {
-            $sql = array();
-            foreach (array_map(array($this, 'input'), $b) as $b) {
-                $sql[] = sprintf('FIND_IN_SET(%s, %s)', $b, $a);
-            }
-            $parens = count($sql) > 1;
-            $sql = implode(' OR ', $sql);
-            return $parens ? ('('.$sql.')') : $sql;
-        }
-        return sprintf('FIND_IN_SET(%s, %s)', $b, $a);
-    }
-
-    function __between($a, $b) {
-        // FIXME: Crash if b not an array of exactly two items
-        $b = array_map(array($this, 'input'), $b);
-        return sprintf('%1$s BETWEEN %2$s AND %3$s', $a, $b[0], $b[1]);
-    }
-
     function compileJoinConstraint($model, $local, $foreign, $table, $alias) {
         list($rmodel, $right) = $foreign;
         // Support a constant constraint with
@@ -147,7 +48,7 @@ class Compiler extends SqlCompiler {
             $table = $this->quote($model::getMeta('table'));
         foreach ($info['constraint'] as $local => $foreign) {
             list($rmodel) = $foreign;
-            list($lhs, $rhs) = $this->compileJoinConstraint($model, $local, 
+            list($lhs, $rhs) = $this->compileJoinConstraint($model, $local,
                 $foreign, $table, $alias);
             $constraints[] = "$lhs = $rhs";
         }
@@ -269,7 +170,7 @@ class Compiler extends SqlCompiler {
 
         // Use an alias for the root model table
         $table = $model::getMeta('table');
-        $this->joins[''] = array('alias' => ($rootAlias = $this->nextAlias()));
+        $this->joins[''] = array('alias' => ($rootAlias = $this->getAlias('', true)));
 
         // Compile the WHERE clause
         $this->annotations = $queryset->annotations ?: array();

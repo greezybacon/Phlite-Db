@@ -21,7 +21,7 @@ abstract class SqlCompiler {
         if ($options)
             $this->options = array_merge($this->options, $options);
         $this->conn = $conn;
-        if ($options['subquery'])
+        if (isset($options['subquery']) && $options['subquery'])
             $this->alias_num += 150;
     }
 
@@ -49,10 +49,13 @@ abstract class SqlCompiler {
     /**
      * Split a path for a model object into several pieces:
      *
-     *   (1) Object to which the path points
-     *   (2) Model on which (1) is defined
-     *   (3) Field on (2) represented by (1)
-     *   (4) Remaining path (not consumed walking to (1))
+     * (1) Object to which the path points
+     * (2) Model on which (1) is defined
+     * (3) Field on (2) represented by (1)
+     * (4) Remaining path (not consumed walking to (1))
+     *
+     * So the result for splitPath('address__street__exact', <User>)
+     * might become ['1 Infinite Way', <Address>, 'street', ['exact']].
      */
     static function splitPath(array $path, $model) {
         $current = $model;
@@ -78,12 +81,7 @@ abstract class SqlCompiler {
      *      expression base. To check if field `name` startswith something,
      *      $field would be `name__startswith`.
      * $check - <mixed> value used as the comparison. This would be the RHS
-     *      of the condition expressed with $field. This can also be a Q
-     *      instance, in which case, $field is not considered, and the Q
-     *      will be used to evaluate the $record directly.
-     *
-     * Throws:
-     * OrmException - if $operator is not supported     *
+     *      of the condition expressed with $field.
      */
     static function evaluate(Model\ModelBase $record, $field, $check) {
         $path = explode('__', $field);
@@ -126,7 +124,7 @@ abstract class SqlCompiler {
      *
      * Parameters:
      * $path - (string) name of the field to join
-     * $model - (VerySimpleModel) root model for references in the $field
+     * $model - (Model\ModelBase) root model for references in the $field
      *      parameter
      *
      * Returns:
@@ -145,11 +143,21 @@ abstract class SqlCompiler {
         // Process the transform part of the path
         list($transform, $field) = $this->getFieldTransform($path, $model, $alias);
 
-        // Note: $alias could be removed here and fetched with a ::getAlias($model)
+        // Note: $alias could be removed here and fetched with a ::getAlias($path)
         // method
         return [$field, $model, $transform, $alias];
     }
 
+    /**
+     * Explode a path into the destination model, corresponding alias,
+     * and remaining path. The path is walked as far as possible with the
+     * specified root model. When no more components of the path represent
+     * properties of the target model, the rest of the path is assumed
+     * to be a transformation.
+     *
+     * If the last item in the path represents a foreign key property, a
+     * join to the field in the remote model is assumed.
+     */
     function explodePath(array $path, $model) {
         // Walk the $path
         $null = false;
@@ -200,13 +208,35 @@ abstract class SqlCompiler {
             $path = [$tail];
         }
 
-        // If no join was followed, use the root model alias
+        // If no join was followed, use the root model alias. Fall back to
+        // the table name if no alias has yet been configured.
         if (!isset($alias))
-            $alias = $this->joins['']['alias'];
+            $alias = $this->getAlias('') ?: $model::getMeta('table');
 
         return [$model, $alias, $path];
     }
 
+    /**
+     * From the specified model, walk the remaining path to extract the field
+     * and a transformation. It is assumed that the path argument does not
+     * specify any joins. If joins are needed to be walked, use the
+     * ::explodePath method first to obtain the proper forein model and remove
+     * the joins from the path.
+     *
+     * If no transform is specified in the $path, then `exact` is assumed.
+     *
+     * Returns:
+     * Tuple of [transform, field_name], where the transform is a Transform
+     * instance which can be used to either evaluate values for the target
+     * path or used to build an SQL query.
+     *
+     * The field_name is the textual name of the field used in the path or
+     * an Expression instance representing an annotation to the model. For the
+     * former, the field name is prepended with the alias of the target model
+     *
+     * FIXME:
+     * Disambiguate the field_name used as the return.
+     */
     function getFieldTransform(array $path, $model, $alias) {
         $field_name = array_shift($path);
 
@@ -214,7 +244,9 @@ abstract class SqlCompiler {
             $field = $field_name = $this->annotations[$field_name];
         }
         elseif ($field = $model::getMeta()->getField($field_name)) {
-            $field_name = "{$alias}.".$this->quote($field_name);
+            $field_name = $this->quote($field_name);
+            if ($alias)
+                $field_name = "{$alias}.{$field_name}";
         }
         else {
             throw new Exception\OrmError(sprintf(
@@ -241,6 +273,34 @@ abstract class SqlCompiler {
     }
 
     /**
+     * Fetch the alias for the given $path used in this compiler, optionally
+     * creating a new alias for the path.
+     *
+     * If searching for an alias, the path is walked backwards and scanned
+     * for the longest path already having an alias. It is assumed that the
+     * parts of the path which would be discarded are to define a
+     * transformation.
+     *
+     * If the create flag is specified, then the path is associated with a
+     * new alias if one does not yet exist. In this case, it is assumed that
+     * the transformation parts of the path have already been stripped.
+     */
+    function getAlias($path, $create=false) {
+        if (!$create) {
+            while ($path && !isset($this->aliases[$path])) {
+                $path = substr($path, 0, strrpos($path, '__'));
+            }
+            if (!isset($this->aliases[$path]))
+                return null;
+        }
+        elseif (!isset($this->aliases[$path])) {
+            $alias = $this->nextAlias();
+            $this->aliases[$path] = $alias;
+        }
+        return $this->aliases[$path];
+    }
+
+    /**
      * Uses the compiler-specific `compileJoin` function to compile the join
      * statement fragment, and caches the result in the local $joins list. A
      * new alias is acquired using the `nextAlias` function which will be
@@ -258,21 +318,7 @@ abstract class SqlCompiler {
         if (isset($this->joins[$path]))
             return $this->joins[$path]['alias'];
 
-        // TODO: Support only using aliases if necessary. Use actual table
-        // names for everything except oddities like self-joins
-
-        $alias = $this->nextAlias();
-        // Keep an association between the table alias and the model. This
-        // will make model construction much easier when we have the data
-        // and the table alias from the database.
-        $this->aliases[$alias] = $model;
-
-        // TODO: Stash joins and join constraints into local ->joins array.
-        // This will be useful metadata in the executor to construct the
-        // final models for fetching
-        // TODO: Always use a table alias. This will further help with
-        // coordination between the data returned from the database (where
-        // table alias is available) and the corresponding data.
+        $alias = $this->getAlias($path, true);
 
         // Correlate path and alias immediately so that they could be
         // referenced in the ::compileJoin method if necessary.
@@ -295,9 +341,6 @@ abstract class SqlCompiler {
      * $Q - (Util\Q) constraint represented in a Q instance
      * $model - (string) root model class for all the field references in
      *      the Util\Q instance
-     * $slot - (int) slot for inputs to be placed. Useful to differenciate
-     *      inputs placed in the joins and where clauses for SQL backends
-     *      which do not support named parameters.
      *
      * Returns:
      * (CompiledExpression) object containing the compiled expression (with
@@ -305,13 +348,13 @@ abstract class SqlCompiler {
      * of the CompiledExpression will allow the compiler to place the
      * constraint properly in the WHERE or HAVING clause appropriately.
      */
-    function compileQ(Util\Q $Q, $model, $slot=false) {
+    function compileQ(Util\Q $Q, $model) {
         $filter = array();
         $type = CompiledExpression::TYPE_WHERE;
         foreach ($Q->constraints as $field=>$value) {
             // Handle nested constraints
             if ($value instanceof Util\Q) {
-                $filter[] = $T = $this->compileQ($value, $model, $slot);
+                $filter[] = $T = $this->compileQ($value, $model);
                 // Bubble up HAVING constraints
                 if ($T instanceof CompiledExpression
                         && $T->type == CompiledExpression::TYPE_HAVING)
@@ -324,7 +367,7 @@ abstract class SqlCompiler {
                     $f = $field . '__' . $f;
                     $criteria[$f] = $v;
                 }
-                $filter[] = $this->compileQ(new Util\Q($criteria), $model, $slot);
+                $filter[] = $this->compileQ(new Util\Q($criteria), $model);
             }
             // Handle simple field = <value> constraints
             else {

@@ -9,7 +9,7 @@ use Phlite\Db\Model;
  * into a model.
  *
  * >>> $loader = new SimpleLoader(new CsvReader([
- * ...     'file' =>   '/path/to/file.csv', 
+ * ...     'file' =>   '/path/to/file.csv',
  * ...     'model' =>  MyModel::getMeta()
  * ... ]));
  * >>> $loader->loadAll();

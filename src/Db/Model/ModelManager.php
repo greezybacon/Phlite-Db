@@ -87,8 +87,7 @@ implements \Countable {
                     $criteria))
                 return $cached;
         }
-
-        return $this->filter($criteria)->one();
+        return $this->getQueryset()->filter($criteria)->one();
     }
 
     /**

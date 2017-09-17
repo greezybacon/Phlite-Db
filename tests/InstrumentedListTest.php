@@ -47,7 +47,7 @@ extends \PHPUnit_Framework_TestCase {
 
         // Add back and test remove with delete
         $supplier->products->add($juice);
-        $supplier->products->remove($juice, true);
+        $this->assertTrue($supplier->products->remove($juice, true));
         $this->assertTrue($juice->__deleted__);
         $this->assertEquals($before, $supplier->products->count());
     }
