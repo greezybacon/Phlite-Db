@@ -74,6 +74,10 @@ implements Db\Transaction {
 
         // TODO: Perhaps create PHP function for collation to enforce the
         //       charset setting
+
+        // Enable REGEXP support
+        $this->cnxn->createFunction('regexp',
+            function($y, $x) { return preg_match("/$y/u", $x); });
     }
 
     function close() {

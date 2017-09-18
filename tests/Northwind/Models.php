@@ -338,7 +338,7 @@ extends Model\ModelBase {
                 'constraint' => ['CustomerID' => 'Customer.CustomerID'],
             ],
             'demographic' => [
-                'constraint' => ['CustomerTypeID' => 'CustomerDemographic.CustomerTypeID'],
+                'constraint' => ['CustomerTypeID' => 'Demographic.CustomerTypeID'],
             ],
         ],
     ];

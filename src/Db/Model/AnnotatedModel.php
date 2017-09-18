@@ -121,4 +121,13 @@ trait WriteableAnnotatedModelTrait {
             $this->__deleted__ = true;
         return $rv;
     }
+
+    function __call($func, $args) {
+        if (isset($this->__overlay__)) {
+            // Invoke in overlay, but do not change the $this variable. That
+            // will allow this annotation to continue to be used for lookups inside
+            // the overlay method.
+            return $this->__overlay__->{$func}(...$args);
+        }
+    }
 }
