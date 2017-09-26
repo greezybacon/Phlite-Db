@@ -30,23 +30,6 @@ abstract class SqlCompiler {
     }
 
     /**
-     * Split a criteria item into the identifying pieces: path, field, and
-     * operator.
-     */
-    static function splitTransform($criteria) {
-        $path = explode('__', $criteria);
-        $operator = false;
-        if (!isset($options['table'])) {
-            $field = array_pop($path);
-            if (isset($operators[$field])) {
-                $operator = $field;
-                $field = array_pop($path);
-            }
-        }
-        return array($field, $path, $operator ?: 'exact');
-    }
-
-    /**
      * Split a path for a model object into several pieces:
      *
      * (1) Object to which the path points
@@ -82,14 +65,25 @@ abstract class SqlCompiler {
      *      $field would be `name__startswith`.
      * $check - <mixed> value used as the comparison. This would be the RHS
      *      of the condition expressed with $field.
+     *
+     * Performance:
+     * 13.4us per call. Inclues call to ::splitPath() (~4us) and a call to
+     * Trasform::transorm method (~1us). That leaves 8us for getField and
+     * getTransform?
      */
     static function evaluate(Model\ModelBase $record, $field, $check) {
         $path = explode('__', $field);
         list($value, $model, $transform, $path) = static::splitPath($path, $record);
         $field = $model::getMeta()->getField($transform);
-        $path = $path ?: ['exact'];
-        foreach ($path as $P) {
-            $field = $transform = $field->getTransform($P, $transform);
+        for (;;) {
+            $path = $path ?: ['exact'];
+            foreach ($path as $P) {
+                $field = $transform = $field->getTransform($P, $transform);
+            }
+            // If ending with a Transform instance, add an `exact` lookup
+            if ($transform instanceof Lookup)
+                break;
+            $path = false;
         }
         return $transform->transform($check, $value);
     }
@@ -260,21 +254,21 @@ abstract class SqlCompiler {
         }
 
         $transform = $field_name;
-        do {
+        for (;;) {
             if (!$path)
                 $path = ['exact'];
-            while (count($path)) {
+            foreach ($path as $P) {
                 // This might look a bit cryptic. Basically, the first transform
                 // should be based on the $field and the field_name. The subsequent
                 // ones should become nested transforms.
-                $field = $transform = $field->getTransform($path[0], $transform);
-                array_shift($path);
+                $field = $transform = $field->getTransform($P, $transform);
             }
+            if ($field instanceof Lookup)
+                break;
             // If the transform is a pseudo field (like year), then add `exact`
             // to the path and continue.
+            $path = false;
         }
-        while (!$field instanceof Lookup);
-        
         return [$transform, $field_name];
     }
 
