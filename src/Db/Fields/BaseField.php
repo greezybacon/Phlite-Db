@@ -3,7 +3,7 @@ namespace Phlite\Db\Fields;
 
 use Phlite\Db\Backend;
 use Phlite\Db\Compile\SqlCompiler;
-use Phlite\Db\Compile\Transform;
+use Phlite\Db\Compile\Lookup;
 use Phlite\Db\Exception;
 use Phlite\Db\Model;
 
@@ -62,24 +62,6 @@ abstract class BaseField {
         return $value;
     }
 
-    /**
-     * Get a presentation of the field value to use in a join constraint.
-     * Normally this is just the field name itself, but some more complex 
-     * fields might need to utilize a database function or something to get
-     * a correct value for joins.
-     */
-    function getJoinConstraint($field_name, $table, SqlCompiler $compiler) {
-        return sprintf("%s.%s", $table, $compiler->quote($field_name));
-    }
-
-    /**
-     * Fetch a value from the local properties array (__ht__). Usually it is
-     * a simple array lookup.
-     */
-    function extractValue($name, $props) {
-        return $props[$name];
-    }
-
     function getConstraints($name) {
         $constraints = [];
         if (isset($this->unique) && $this->unique)
@@ -129,67 +111,57 @@ abstract class BaseField {
 
 // Load standard transforms
 class ExactTransform
-extends Transform {
+extends Lookup {
     static $name = 'exact';
     static $template = '%s = %s';
 
-    function evaluate($rhs, $lhs=null) {
-        if ($this->lhs instanceof Transform)
-            $lhs = $this->lhs->evaluate(null, $lhs);
+    function evaluate($rhs, $lhs) {
         return $lhs == $rhs;
     }
 }
 
 class LessTransform
-extends Transform {
+extends Lookup {
     static $name = 'lt';
     static $template = '%s < %s';
 
-    function evaluate($rhs, $lhs=null) {
-        if ($this->lhs instanceof Transform)
-            $lhs = $this->lhs->evaluate(null, $lhs);
+    function evaluate($rhs, $lhs) {
         return $lhs < $rhs;
     }
 }
 
 class LessEqualTransform
-extends Transform {
+extends Lookup {
     static $name = 'lte';
     static $template = '%s <= %s';
 
-    function evaluate($rhs, $lhs=null) {
-        if ($this->lhs instanceof Transform)
-            $lhs = $this->lhs->evaluate(null, $lhs);
+    function evaluate($rhs, $lhs) {
          return $lhs <= $rhs;
     }
 }
 
 class GreaterTransform
-extends Transform {
+extends Lookup {
     static $name = 'gt';
     static $template = '%s > %s';
 
-    function evaluate($rhs, $lhs=null) {
-        if ($this->lhs instanceof Transform)
-            $lhs = $this->lhs->evaluate(null, $lhs);
+    function evaluate($rhs, $lhs) {
          return $lhs > $rhs;
     }
 }
 
 class GreaterEqualTransform
-extends Transform {
+extends Lookup {
     static $name = 'gte';
     static $template = '%s >= %s';
 
-    function evaluate($rhs, $lhs=null) {
-        if ($this->lhs instanceof Transform)
-            $lhs = $this->lhs->evaluate(null, $lhs);
+    function evaluate($rhs, $lhs) {
          return $lhs >= $rhs;
     }
 }
 
 class IsNullTransform
-extends Transform {
+extends Lookup {
     static $name = 'isnull';
 
     function toSql($compiler, $model, $rhs) {
@@ -198,15 +170,13 @@ extends Transform {
         return "{$lhs} $rhs";
     }
 
-    function evaluate($rhs, $lhs=null) {
-        if ($this->lhs instanceof Transform)
-            $lhs = $this->lhs->evaluate(null, $lhs);
+    function evaluate($rhs, $lhs) {
          return is_null($lhs) == $rhs;
     }
 }
 
 class InTransform
-extends Transform {
+extends Lookup {
     static $name = 'in';
     static $template = '%s IN %s';
 
@@ -239,10 +209,7 @@ extends Transform {
         return parent::toSql($compiler, $model, $rhs);
     }
 
-    function evaluate($rhs, $lhs=null) {
-        if ($this->lhs instanceof Transform)
-            $lhs = $this->lhs->evaluate(null, $lhs);
-
+    function evaluate($rhs, $lhs) {
         // Array
         if (is_array($rhs))
             return in_array($lhs, $rhs);
@@ -250,7 +217,7 @@ extends Transform {
 }
 
 class RangeTransform
-extends Transform {
+extends Lookup {
     static $name = 'range';
     static $template = '%s BETWEEN %s';
 
@@ -262,10 +229,7 @@ extends Transform {
             $compiler->input($rhs[0]), $compiler->input($rhs[1]));
     }
 
-    function evaluate($rhs, $lhs=null) {
-        if ($this->lhs instanceof Transform)
-            $lhs = $this->lhs->evaluate(null, $lhs);
-
+    function evaluate($rhs, $lhs) {
         if (count($rhs) != 2)
             throw new Exception\QueryError('Range must be array of two items');
 

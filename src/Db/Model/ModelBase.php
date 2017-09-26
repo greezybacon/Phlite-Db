@@ -51,11 +51,9 @@ abstract class ModelBase {
                 // Localize the foreign key constraint
                 foreach ($j['constraint'] as $local=>$foreign) {
                     list($_klas, $F) = $foreign;
-                    // Split by colons for complex field name expressions
-                    list($fname, ) = explode(':', $local, 2);
                     $fkey[$F ?: $_klas] = ($local[0] == "'")
                         ? trim($local, "'")
-                        : $meta->getField($fname)->extractValue($local, $this->__ht__);
+                        : $this->__ht__[$local];
                 }
                 $v = $this->__ht__[$field] = new $j['broker'](
                     // Send [ForeignModel, [Foriegn-Field => Local-Id], JoinInfo]

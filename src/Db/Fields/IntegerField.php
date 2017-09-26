@@ -1,6 +1,8 @@
 <?php
 namespace Phlite\Db\Fields;
 
+use Phlite\Db\Compile\Lookup;
+
 class IntegerField
 extends BaseField {
     static $defaults = array(
@@ -16,3 +18,15 @@ extends BaseField {
         return (int) $value;
     }
 }
+
+class HasbitTransform
+extends Lookup {
+    static $name = 'hasbit';
+    static $template = '%s & %s != 0';
+
+    function evaluate($rhs, $lhs) {
+         return ($lhs & $rhs) == $rhs;
+    }
+}
+
+IntegerField::registerTransform(HasbitTransform::class);

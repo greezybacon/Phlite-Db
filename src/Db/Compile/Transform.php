@@ -33,10 +33,6 @@ abstract class Transform {
         return $compiler->input($rhs, $model);
     }
     
-    function getOutputFieldType() {
-        return IntegerField::class;
-    }
-    
     function isAggregate() {
         if ($this->lhs instanceof self)
             return $this->lhs->isAggregate();
@@ -57,5 +53,17 @@ abstract class Transform {
         return $field->getTransform($name, $this);
     }
     
-    abstract function evaluate($rhs, $lhs=null);
+    /**
+     * Perform the transformation in PHP. This would be used as a complement
+     * to ::toSQL where the result would be consumed by PHP code rather than
+     * the database.
+     */
+    function transform($rhs, $lhs) {
+        if ($this->lhs instanceof self)
+            $lhs = $this->lhs->transform(null, $lhs);
+        return $this->evaluate($rhs, $lhs);
+    }
+
+    abstract function evaluate($rhs, $lhs);
+    abstract function getOutputFieldType();
 }

@@ -131,7 +131,7 @@ extends \PHPUnit_Framework_TestCase {
     function testYearTransform() {
         $this->assertCount(152,
             Northwind\Order::objects()
-                ->filter(['OrderDate__year__exact' => 1996])
+                ->filter(['OrderDate__year' => 1996])
         );
         $this->assertCount(152,
             Northwind\Order::objects()->all()

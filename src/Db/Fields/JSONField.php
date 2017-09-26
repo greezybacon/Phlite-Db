@@ -2,9 +2,8 @@
 namespace Phlite\Db\Fields;
 
 use Phlite\Db\Backend;
-use Phlite\Db\Compile\SqlCompiler;
+use Phlite\Db\Compile\Transform;
 use Phlite\Db\Exception;
-use Phlite\Text;
 
 class JSONField
 extends TextField {
@@ -16,19 +15,34 @@ extends TextField {
         return json_encode($value);
     }
 
-    function getJoinConstraint($field_name, $table, SqlCompiler $compiler) {
-        list($field, $path) = explode(':', $field_name, 2);
-        return sprintf("json_extract(%s.%s, '$.%s')", $table,
-            $compiler->quote($field), $path);
+    function getTransform($name, $lhs) {
+        // TODO: Consider generic transforms like `__lt`?
+        return new JSONFieldTransform($lhs, $name);
+    }
+}
+
+class JSONFieldTransform
+extends Transform {
+    protected $jpath;
+
+    function __construct($lhs, $jpath=null) {
+        $this->jpath = $jpath;
+        parent::__construct($lhs);
     }
 
-    /**
-     * Fetch a value from the local properties array (__ht__). Usually it is
-     * a simple array lookup.
-     */
-    function extractValue($name, $props) {
-        list($name, $path) = explode(':', $name, 2);
-        return @$props[$name]->{$path} ?: null;
+    function toSql($compiler, $model, $rhs) {
+        $lhs = $this->buildLhs($compiler, $model);
+        // TODO: Support JPATH?
+        return sprintf("JSON_EXTRACT({$lhs}, '$.{$this->jpath}')");
+    }
+
+    function evaluate($rhs, $lhs) {
+        // TODO: Support JPATH here
+        return $lhs->{$rhs};
+    }
+
+    function getOutputFieldType() {
+        return TextField::class;
     }
 }
 

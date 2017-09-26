@@ -2,6 +2,8 @@
 namespace Phlite\Db\Backends\SQLite;
 
 use Phlite\Db;
+use Phlite\Db\Model\Schema\FieldDescriptor;
+use Phlite\Db\Model\Schema\SchemaEditor;
 
 class DdlCompiler 
 extends Db\Compile\DdlCompiler {
@@ -32,6 +34,21 @@ extends Db\Compile\DdlCompiler {
         default:
             throw new \Exception(sprintf('%s: Unexpected or unsupported field type',
             get_class($field)));
+        }
+    }
+
+    function compileFieldDescriptor($name, FieldDescriptor $field) {
+        switch ($field->disposition) {
+        case SchemaEditor::TYPE_ADD:
+            // Position doesn't matter in SQLite. All new columns are appended
+            // to the end of the table.
+            return sprintf('ADD %s %s', $this->quote($name),
+                $this->visit($field->getField()));
+        default:
+        // For SQLite this will require a completely new table. A new table
+        // should be constructed in a transaction with the altered schema.
+        // All the data from the current model should be copied to the new
+        // model. Then the old model can be deleted and the transaction committed.
         }
     }
 

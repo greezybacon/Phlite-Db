@@ -17,6 +17,9 @@ extends Model\ModelBase {
             'category' => [
                 'constraint' => ['CategoryID' => 'Category.CategoryID'],
             ],
+            'sales' => [
+                'reverse' => 'OrderDetail.product'
+            ],
         ],
     ];
 

@@ -2,6 +2,7 @@
 namespace Phlite\Db\Fields;
 
 use Phlite\Db\Compile\Transform;
+use Phlite\Db\Fields\IntegerField;
 
 class DateTimeField
 extends TextField {
@@ -23,10 +24,14 @@ extends Transform {
         return "CAST(STRFTIME('%Y', {$lhs}) AS INT)";
     }
 
-    function evaluate($rhs, $lhs=null) {
+    function evaluate($rhs, $lhs) {
         if (is_string($lhs))
             $lhs = strtotime($lhs);
         return (int) strftime('%Y', $lhs);
+    }
+
+    function getOutputFieldType() {
+        return IntegerField::class;
     }
 }
 

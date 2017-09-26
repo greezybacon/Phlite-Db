@@ -91,7 +91,7 @@ abstract class SqlCompiler {
         foreach ($path as $P) {
             $field = $transform = $field->getTransform($P, $transform);
         }
-        return $transform->evaluate($check, $value);
+        return $transform->transform($check, $value);
     }
 
     /**
@@ -128,10 +128,10 @@ abstract class SqlCompiler {
      *      parameter
      *
      * Returns:
-     * 4-tuple [$field, $model, $transform, $alias], where field is the
+     * 3-tuple [$field, $model, $transform], where field is the
      * compiled text, $model is the foreign model determined from the path,
-     * $transform is the lookup mechanism to be used to form the comparison,
-     * and $alias is the table alias of the foreign model in the query.
+     * and $transform is the lookup mechanism to be used to form the
+     * comparison.
      */
     function getField($path, $model) {
         if (is_string($path))
@@ -145,7 +145,7 @@ abstract class SqlCompiler {
 
         // Note: $alias could be removed here and fetched with a ::getAlias($path)
         // method
-        return [$field, $model, $transform, $alias];
+        return [$field, $model, $transform];
     }
 
     /**
@@ -188,7 +188,7 @@ abstract class SqlCompiler {
         }
         // There are two reasons to arrive here:
         // (1) the next item in the path does not represent a join. In this
-        // case, we need to make sure the next item in the path represenets
+        // case, we need to make sure the next item in the path represents
         // a field on the model
         if (count($path) > 0) {
             if (!$model::getMeta()->hasField($path[0])) {
@@ -198,7 +198,12 @@ abstract class SqlCompiler {
                 }
                 // If it's an annotation, that's ok
                 elseif (!isset($this->annotations[$path[0]])) {
-                    throw new \Exception('Bad news dood');
+                    throw new \Exception(sprintf(
+                        '%s: Model does not have relation called `%s`%s',
+                        $model, $path[0], isset($tail)
+                            ? sprintf(', and `%s` does not represent a field on the model', $tail)
+                            : ''
+                    ));
                 }
             }
         }
@@ -254,20 +259,21 @@ abstract class SqlCompiler {
                 $model, $field_name));
         }
 
-        if (!$path)
-            $path = ['exact'];
-
         $transform = $field_name;
-        while (count($path)) {
-            // This might look a bit cryptic. Basically, the first transform
-            // should be based on the $field and the field_name. The subsequent
-            // ones should become nested transforms.
-            $field = $transform = $field->getTransform($path[0], $transform);
-            array_shift($path);
-
-            // TODO: If the transform is a pseudo field (like year), then add 
-            // `exact` to the path and continue.
+        do {
+            if (!$path)
+                $path = ['exact'];
+            while (count($path)) {
+                // This might look a bit cryptic. Basically, the first transform
+                // should be based on the $field and the field_name. The subsequent
+                // ones should become nested transforms.
+                $field = $transform = $field->getTransform($path[0], $transform);
+                array_shift($path);
+            }
+            // If the transform is a pseudo field (like year), then add `exact`
+            // to the path and continue.
         }
+        while (!$field instanceof Lookup);
         
         return [$transform, $field_name];
     }

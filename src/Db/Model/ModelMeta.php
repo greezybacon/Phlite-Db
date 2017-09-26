@@ -32,7 +32,7 @@ implements \ArrayAccess {
         'label' => '',
         // Use ->getFields() instances to interpret data to/from the
         // database. Can be TRUE or an array of field names.
-        'interpret' => false,
+        'interpret' => true,
         // Give hints for field types returned from database. Useful for
         // ambiguous things like JSONField
         'field_types' => false,
@@ -446,6 +446,10 @@ implements \ArrayAccess {
 
     function reset() {
         unset($this->fields);
+        if (isset($this->apc_key)) {
+            $key = static::$secret . "fields/{$this['table']}";
+            apcu_delete($key);
+        }
     }
 
     static function flushModelCache() {

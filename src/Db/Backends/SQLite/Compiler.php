@@ -22,15 +22,12 @@ extends Db\Backends\MySQL\Compiler {
     // SQLite doesn't support the INSERT INTO ... SET like MySQL does
     function compileInsert(Model\ModelBase $model) {
         $pk = $model::getMeta('pk');
-        $interpret = $model::getMeta('interpret');
         $fields = array();
         foreach ($model->__dirty__ as $field=>$old) {
-            $val = $model->get($field);
-            if ($interpret && in_array($field, $interpret))
-                $val =
-                    $model::getMeta()->getField($field)->to_database($val,
-                    $this->conn);
-            $fields[$this->quote($field)] = $this->input($val);
+            $value = $model->get($field);
+            $value = $model::getMeta()->getField($field)
+                ->to_database($value, $this->conn);
+            $fields[$this->quote($field)] = $this->input($value);
         }
         $sql = 'INSERT INTO '.$this->quote($model::getMeta('table')).' ('
             . implode(', ', array_keys($fields)).') VALUES ('

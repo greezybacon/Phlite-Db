@@ -1,6 +1,8 @@
 <?php
 namespace Phlite\Db\Compile;
 
+use Phlite\Db\Model\Schema;
+
 /**
  * The DDLCompiler differs from the SqlCompiler in that it uses the visitor
  * pattern in order to support compiling arbitrary field Meta-Data
@@ -49,10 +51,24 @@ abstract class DdlCompiler {
     }
 
     function compileDrop($modelClass) {
+        $meta = $modelClass::getMeta();
         return new Statement(sprintf('DROP TABLE %s',
             $this->quote($meta['table'])
         ));
     }
+    
+    function compileAlter($modelClass, Schema\SchemaEditor $editor) {
+        $meta = $modelClass::getMeta();
+        $changes = [];
+        foreach ($editor as $name=>$change) {
+            $changes[] = $this->compileFieldDescriptor($name, $change);
+        }
+        return new Statement(sprintf('ALTER TABLE %s %s',
+            $this->quote($meta['table']), implode(', ', $changes)
+        ));
+    }
+    
+    abstract function compileFieldDescriptor($name, Schema\FieldDescriptor $field);
 
     function escape($what) {
         return $this->backend->escape($what);

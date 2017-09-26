@@ -22,8 +22,7 @@ class Compiler extends SqlCompiler {
             $lhs = $this->input(trim($local, '\'"'));
         }
         else {
-            $lhs = $model::getMeta()->getField($local)
-                ->getJoinConstraint($local, $table, $this);
+            $lhs = sprintf("%s.%s", $table, $this->quote($local));
         }
         // Support local constraint
         // field_name => "'constant'"
@@ -31,8 +30,7 @@ class Compiler extends SqlCompiler {
             $rhs = $this->input(trim($rmodel, '\'"'));
         }
         else {
-            $rhs = $rmodel::getMeta()->getField($right)
-                ->getJoinConstraint($right, $alias, $this);
+            $rhs = sprintf("%s.%s", $alias, $this->quote($right));
         }
         return array($lhs, $rhs);
     }
@@ -205,12 +203,10 @@ class Compiler extends SqlCompiler {
             foreach ($queryset->related as $sr) {
                 // XXX: Sort related by the paths so that the shortest paths
                 //      are resolved first when building out the models.
-                $full_path = '';
                 $parts = array();
                 // Track each model traversal and fetch data for each of the
                 // models in the path of the related table
                 foreach (explode('__', $sr) as $field) {
-                    $full_path .= $field;
                     $parts[] = $field;
                     $theseFields = array();
                     list($fmodel, $alias) = $this->explodePath($parts, $model);
@@ -226,7 +222,6 @@ class Compiler extends SqlCompiler {
                     if ($theseFields) {
                         $fieldMap[] = array($theseFields, $fmodel, $parts);
                     }
-                    $full_path .= '__';
                 }
             }
         }
@@ -345,8 +340,11 @@ class Compiler extends SqlCompiler {
         $fields = array();
         foreach ($model->__dirty__ as $field=>$old) {
             if ($model->__new__ or !in_array($field, $pk)) {
+                $value = $model->get($field);
+                $value = $model::getMeta()->getField($field)
+                    ->to_database($value, $this->conn);
                 $fields[] = sprintf('%s = %s', $this->quote($field),
-                    $this->input($model->get($field)));
+                    $this->input($value));
             }
         }
         return ' SET '.implode(', ', $fields);
@@ -401,9 +399,12 @@ class Compiler extends SqlCompiler {
         $model = $queryset->model;
         $table = $model::getMeta('table');
         $set = array();
-        foreach ($what as $field=>$value)
+        foreach ($what as $field=>$value) {
+            $value = $model::getMeta()->getField($field)
+                ->to_database($value, $this->conn);
             $set[] = sprintf('%s = %s', $this->quote($field),
                 $this->input($value, $model));
+        }
         $set = implode(', ', $set);
         list($where, $having) = $this->getWhereHavingClause($queryset);
         $joins = $this->getJoins($queryset);

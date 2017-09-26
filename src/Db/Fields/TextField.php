@@ -2,7 +2,7 @@
 namespace Phlite\Db\Fields;
 
 use Phlite\Db\Backend;
-use Phlite\Db\Compile\Transform;
+use Phlite\Db\Compile\Lookup;
 use Phlite\Text;
 
 class TextField
@@ -35,7 +35,7 @@ extends BaseField {
 }
 
 abstract class LikeTransform
-extends Transform {
+extends Lookup {
     static $template = '%s LIKE %s';
 
     // Thanks, http://stackoverflow.com/a/3683868
@@ -53,7 +53,7 @@ extends LikeTransform {
         return parent::toSql($compiler, $model, "%{$rhs}%");
     }
 
-    function evaluate($rhs, $lhs=null) {
+    function evaluate($rhs, $lhs) {
         return stripos($lhs, $rhs) !== false;
     }
 }
@@ -67,7 +67,7 @@ extends LikeTransform {
         return parent::toSql($compiler, $model, "{$rhs}%");
     }
 
-    function evaluate($rhs, $lhs=null) {
+    function evaluate($rhs, $lhs) {
         return stripos($lhs, $rhs) !== false;
     }
 }
@@ -81,14 +81,14 @@ extends LikeTransform {
         return parent::toSql($compiler, $model, "%{$rhs}");
     }
 
-    function evaluate($rhs, $lhs=null) {
+    function evaluate($rhs, $lhs) {
         return $rhs === ''
             || strcasecmp(substr($lhs, -strlen($rhs)), $rhs) === 0;
     }
 }
 
 class RegexTransform
-extends Transform {
+extends Lookup {
     static $name = 'regex';
     static $template = '%s REGEXP %s';
 
@@ -99,7 +99,7 @@ extends Transform {
         return parent::toSql($compiler, $model, $rhs);
     }
 
-    function evaluate($rhs, $lhs=null) {
+    function evaluate($rhs, $lhs) {
         if ($rhs[0] == '/')
             $rhs = preg_replace('`/[^/]*$`', '', substr($rhs, 1));
         return preg_match("/$rhs/iu", $lhs);
