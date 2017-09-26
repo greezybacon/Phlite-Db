@@ -429,7 +429,7 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
 
     // Delegate other methods to the iterator
     function __call($func, $args) {
-        return call_user_func_array(array($this->getIterator(), $func), $args);
+        return $this->getIterator()->$func(...$args);
     }
 
     // IteratorAggregate interface

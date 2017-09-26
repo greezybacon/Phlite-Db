@@ -63,6 +63,9 @@ extends \PHPUnit_Framework_TestCase {
         $this->assertEquals('Switzerland', $shoggi->data->CountryOfOrigin);
     }
 
+    /**
+     * @depends testJSONUpdate
+     */
     function testJSONFilter() {
         $german = Northwind\ProductWithData::objects()
             ->filter(['data__CountryOfOrigin' => 'Germany']);

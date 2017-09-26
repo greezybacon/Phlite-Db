@@ -422,7 +422,7 @@ implements \ArrayAccess {
         $interpret = array_fill_keys($fieldnames, 1);
         $bk = Router::getBackend($this);
         foreach ($this->getFields() as $name=>$field) {
-            if (isset($props[$name]) && isset($interpret[$name])) {
+            if (array_key_exists($name, $props) && isset($interpret[$name])) {
                 $props[$name] = $field->to_php($props[$name], $bk);
             }
         }

@@ -7,8 +7,25 @@ use Phlite\Db\Exception;
 
 class JSONField
 extends TextField {
+    static $defaults = [
+        # Normally, JSON searching and content should be considered case
+        # insensitive
+        'case' => true,
+        # Return stdClass objects instead of arrays. This is more natural
+        # and is also the default for JSON handling in PHP; however, all
+        # current PHP version return an error if you try
+        # >>> $model->json->key = 'value'
+        # It is possible, however, with parentheses:
+        # >>> ($model->json)->key = 'value';
+        'object' => false,
+    ];
+
     function to_php($value, Backend $backend) {
-        return is_string($value) ? json_decode($value) : $value;
+        if (is_string($value))
+            return json_decode($value, !$this->options['object']);
+        if (is_null($value))
+            return new \stdClass;
+        return $value;
     }
 
     function to_database($value, Backend $backend) {
