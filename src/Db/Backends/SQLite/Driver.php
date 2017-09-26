@@ -20,15 +20,9 @@ implements SqlDriver {
         $this->stmt = $stmt;
         $this->backend = $bk;
     }
+
     function __destruct() {
         $this->close();
-    }
-
-    // Array of [count, model] values representing which fields in the
-    // result set go with witch model.  Useful for handling select_related
-    // queries
-    function getMap() {
-        return $this->stmt->map;
     }
 
     function execute() {

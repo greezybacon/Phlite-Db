@@ -29,13 +29,6 @@ implements SqlDriver {
         $this->close();
     }
 
-    // Array of [count, model] values representing which fields in the
-    // result set go with witch model.  Useful for handling select_related
-    // queries
-    function getMap() {
-        return $this->stmt->map;
-    }
-
     function execute() {
         // Lazy connect to the database
         if (!isset($this->conn))

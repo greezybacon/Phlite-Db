@@ -8,9 +8,9 @@ class Backend
 extends Db\Backend
 implements Db\Transaction {
     static $defaults = [
-      'COMPILER'  => 'Phlite\Db\Backends\SQLite\Compiler',
-      'DDLCOMPILER' => 'Phlite\Db\Backends\SQLite\DdlCompiler',
-      'DRIVER'    => 'Phlite\Db\Backends\SQLite\Driver',
+      'COMPILER'  =>    Compiler::class,
+      'DDLCOMPILER' =>  DdlCompiler::class,
+      'DRIVER'    =>    Driver::class,
     ];
 
     var $info;

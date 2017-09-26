@@ -15,7 +15,6 @@ interface SqlDriver {
 
     function fetchRow();
     function fetchArray();
-    function getMap();
 
     /**
      * insert_id
@@ -30,4 +29,10 @@ interface SqlDriver {
      * Retrieve the number of affected rows from the previous DML statement
      */
     function affected_rows();
+
+    /**
+     * Retrieve information about the recordset columns. Used to inspect
+     * the database schema.
+     */
+    function getColumnNames();
 }

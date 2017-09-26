@@ -23,6 +23,11 @@ class Statement {
         $this->map = $map;
     }
 
+    /**
+     * Array of [count, model] values representing which fields in the
+     * result set go with witch model.  Useful for handling select_related
+     * queries.
+     */
     function getMap() {
         return $this->map;
     }

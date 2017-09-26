@@ -119,14 +119,14 @@ implements \IteratorAggregate {
      * describes the relationship between the root model and this model,
      * 'user__account' for instance.
      */
-    function buildModel($row) {
+    function buildModel($row, array $map=null) {
         // TODO: Traverse to foreign keys
-        if ($this->map) {
-            if ($this->model != $this->map[0][1])
+        if ($map) {
+            if ($this->model != $map[0][1])
                 throw new Exception\OrmError('Internal select_related error');
 
             $offset = 0;
-            foreach ($this->map as $info) {
+            foreach ($map as $info) {
                 @list($fields, $model_class, $path) = $info;
                 $values = array_slice($row, $offset, count($fields));
                 $record = array_combine($fields, $values);
@@ -160,11 +160,11 @@ implements \IteratorAggregate {
         $stmt = $this->queryset->getQuery();
         $this->resource = $backend->getDriver($stmt);
         $this->resource->execute();
-        $this->map = $this->resource->getMap();
-        $func = array($this->resource, ($this->map) ? 'fetchRow' : 'fetchArray');
+        $map = $stmt->getMap();
+        $func = array($this->resource, ($map) ? 'fetchRow' : 'fetchArray');
 
         while ($row = $func()) {
-            $model = $this->buildModel($row);
+            $model = $this->buildModel($row, $map);
             yield $model;
         }
 
