@@ -50,13 +50,13 @@ extends \PHPUnit_Framework_TestCase {
         );
     }
 
-    function testIsnullTransform() {
+    function testIsNullTransform() {
         // SQLite has a problem with IS NULL. It does not return proper results
-        $this->assertCount(30,
+        $this->assertCount(508,
             Northwind\Order::objects()
                 ->filter(['ShipRegion__isnull' => true])
         );
-        $this->assertCount(30,
+        $this->assertCount(508,
             Northwind\Order::objects()->all()
                 ->findAll(['ShipRegion__isnull' => true])
         );

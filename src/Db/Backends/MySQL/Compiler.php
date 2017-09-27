@@ -14,6 +14,8 @@ use Phlite\Db\Model\QuerysetView;
 use Phlite\Db\Util;
 
 class Compiler extends SqlCompiler {
+    static $platform = 'mysql';
+
     function compileJoinConstraint($model, $local, $foreign, $table, $alias) {
         list($rmodel, $right) = $foreign;
         // Support a constant constraint with
@@ -470,7 +472,7 @@ class Compiler extends SqlCompiler {
 
         if (isset($hints[$props['name']]))
             $class = $hints[$props['name']];
-        
+
         return new $class($props);
     }
 

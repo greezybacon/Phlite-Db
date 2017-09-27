@@ -56,7 +56,7 @@ abstract class DdlCompiler {
             $this->quote($meta['table'])
         ));
     }
-    
+
     function compileAlter($modelClass, Schema\SchemaEditor $editor) {
         $meta = $modelClass::getMeta();
         $changes = [];
@@ -67,13 +67,13 @@ abstract class DdlCompiler {
             $this->quote($meta['table']), implode(', ', $changes)
         ));
     }
-    
+
     abstract function compileFieldDescriptor($name, Schema\FieldDescriptor $field);
 
     function escape($what) {
         return $this->backend->escape($what);
     }
-    
+
     function getBackend() {
         return $this->backend;
     }

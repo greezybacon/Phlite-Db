@@ -7,6 +7,8 @@ use Phlite\Db\Model;
 
 class Compiler
 extends Db\Backends\MySQL\Compiler {
+    static $platform = 'sqlite';
+
     function quote($what) {
         return sprintf('"%s"', $what);
     }
@@ -60,7 +62,7 @@ extends Db\Backends\MySQL\Compiler {
                     'table' => $table,
                 ]);
                 unset($columns[$i]);
-            }   
+            }
         }
 
         return $cacheable ? ($cache[$table] = $columns) : $columns;

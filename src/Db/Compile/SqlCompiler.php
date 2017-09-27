@@ -8,6 +8,7 @@ use Phlite\Db\Model;
 use Phlite\Db\Util;
 
 abstract class SqlCompiler {
+    static $platform = 'unknown';
 
     var $options = array();
     var $joins = array();
@@ -55,12 +56,15 @@ abstract class SqlCompiler {
     }
 
     /**
-     * Check if the values match given the operator.
+     * Check if the values match given the transform. This performs the same
+     * operation as the database would in a filter() expression (which would
+     * be compiled into the WHERE clause). Howerver, the evaluation is
+     * performed in pure PHP.
      *
      * Parameters:
      * $record - <ModelBase> An model instance representing a row from the
      *      database
-     * $field - Field path including operator used as the evaluated
+     * $field - Field path including transform used as the evaluated
      *      expression base. To check if field `name` startswith something,
      *      $field would be `name__startswith`.
      * $check - <mixed> value used as the comparison. This would be the RHS
@@ -515,8 +519,12 @@ abstract class SqlCompiler {
     // XXX: Place this in another interface to define more specific type and forms of inspection
     abstract function inspectTable($meta, $details=false, $cacheable=true);
 
-    // XXX: Move this to another interface to include complete support for
-    //      model migrations
-    abstract function compileCreate($modelClass, $fields, $constraints=array());
-    abstract function compileDrop($modelClass);
+    // Database platform inspection
+    function getPlatform() {
+        return static::$platform;
+    }
+
+    function isPlatform($platform) {
+        return $this->getPlatform() == $platform;
+    }
 }

@@ -24,7 +24,7 @@ extends FileReader {
             throw new \InvalidArgumentException(
                 "Specify a `model` option which the data represents.");
 
-        if (is_string($options['model'] 
+        if (is_string($options['model']
             && is_subclass_of($options['model'], Model\ModelBase::class))
         ) {
             $options['model'] = $options['model']::getMeta();
@@ -46,11 +46,15 @@ extends FileReader {
         if (!$row || $row[0] === null)
             return null;
 
+        foreach ($row as $k=>$v) {
+            if (strtoupper($v) === 'NULL')
+                $row[$k] = null;
+        }
         try {
             $row = array_combine($this->header, $row);
         } catch (\Exception $x) {
             var_dump($row);
-            throw $x; 
+            throw $x;
         }
         $row = $this->fromExport($row, $this->model->getFields());
         return $row;

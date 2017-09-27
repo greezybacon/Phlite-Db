@@ -139,7 +139,7 @@ extends Model\ModelBase {
     static function buildSchema(SchemaBuilder $b) {
         $b->addFields([
             'OrderID'       => new Fields\AutoIdField(['pk' => true]),
-            'CustomerID'    => new Fields\IntegerField(),
+            'CustomerID'    => new Fields\ForeignKey(Customer::class, ['join'=>'orders']),
             'EmployeeID'    => new Fields\IntegerField(),
             'OrderDate'     => new Fields\DatetimeField(),
             'RequiredDate'  => new Fields\DatetimeField(),
@@ -329,6 +329,22 @@ extends Model\ModelBase {
             ],
         ],
     ];
+
+    static function buildSchema(SchemaBuilder $builder) {
+        $builder->addFields([
+            'CustomerID'    => new Fields\TextField(['pk' => true, 'length'=>8]),
+            'CompanyName'   => new Fields\TextField(['length' => 40]),
+            'ContactName'   => new Fields\TextField(['length' => 30]),
+            'ContactTitle'  => new Fields\TextField(['length' => 30]),
+            'Address'       => new Fields\TextField(['length' => 60]),
+            'City'          => new Fields\TextField(['length' => 15]),
+            'Region'        => new Fields\TextField(['length' => 15]),
+            'PostalCode'    => new Fields\TextField(['length' => 10]),
+            'Country'       => new Fields\TextField(['length' => 15]),
+            'Phone'         => new Fields\TextField(['length' => 24]),
+            'Fax'           => new Fields\TextField(['length' => 24]),
+        ]);
+    }
 }
 
 class CustomerDemographic

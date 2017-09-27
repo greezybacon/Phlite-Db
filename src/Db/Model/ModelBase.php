@@ -1,5 +1,4 @@
 <?php
-
 namespace Phlite\Db\Model;
 
 use Phlite\Db\Exception;

@@ -166,7 +166,10 @@ extends Lookup {
 
     function toSql($compiler, $model, $rhs) {
         $lhs = $this->buildLhs($compiler, $model);
-        $rhs = $rhs ? 'IS NULL' : 'IS NOT NULL';
+        if ($compiler->getPlatform() == 'sqlite')
+            $rhs = $rhs ? 'ISNULL' : 'NOTNULL';
+        else
+            $rhs = $rhs ? 'IS NULL' : 'IS NOT NULL';
         return "{$lhs} $rhs";
     }
 
