@@ -68,14 +68,18 @@ implements \ArrayAccess {
         
         // Break down edge (many-to-many) metadata to joins
         foreach ($this->meta['edges'] as $field => $e) {
-            $this->meta['joins'][$field] = $this->getJoinInfoForEdge($e, $field);
+            // Avoid re-compiling edge relationships
+            if (!isset($this->meta['joins'][$field]))
+                $this->meta['joins'][$field] = $this->getJoinInfoForEdge($e, $field);
         }
 
         // Break down foreign-key metadata
         foreach ($this->meta['joins'] as $field => $j) {
-            $this->meta['joins'][$field] = $j = $this->buildJoin($j);
-            if (isset($j['local']))
-                $this->meta['foreign_keys'][$j['local']] = $field;
+            if (is_array($j))
+                $j = $this->buildJoin($j);
+            $this->meta['joins'][$field] = $j;
+            foreach ($j->foreign_fields as $lfield=>$T)
+                $this->meta['foreign_keys'][$lfield] = $field;
         }
 
         if (isset($this->apc_key)) {
@@ -87,7 +91,7 @@ implements \ArrayAccess {
      * Construct the local $meta data. This method is only called once for
      * each model, and it is short-circuited if the ::$use_cache is set and
      * the model has been previously cached.
-     * 
+     *
      * Returns:
      * The meta data which should become the ->meta array. This value will
      * be cached if caching is enabled.
@@ -173,96 +177,39 @@ implements \ArrayAccess {
         return $this->parent->isSubclassOf($model);
     }
 
-    /**
-     * Adds some more information to a declared relationship. If the
-     * relationship is a reverse relation, then the information from the
-     * reverse relation is loaded into the local definition
-     *
-     * Compiled-Join-Structure:
-     * 'constraint' => array(local => array(foreign_field, foreign_class)),
-     *      Constraint used to construct a JOIN in an SQL query
-     * 'list' => boolean
-     *      TRUE if an InstrumentedList should be employed to fetch a list
-     *      of related items
-     * 'broker' => Handler for the 'list' property. Usually a subclass of
-     *      'InstrumentedList'
-     * 'null' => boolean
-     *      TRUE if relation is nullable
-     * 'fkey' => array(class, pk)
-     *      Classname and field of the first item in the constraint that
-     *      points to a PK field of a foreign model
-     * 'local' => string
-     *      The local field corresponding to the 'fkey' property
-     * 'through' => [relationship, ModelBase::class]
-     *      The information for the rest of the edge. The join info will
-     *      have information to get the intermediate models. This has the
-     *      relation from the intermediate models to the target model.
-     */
-    function buildJoin($j) {
-        $constraint = array();
-        if (isset($j['reverse'])) {
-            list($fmodel, $key) = explode('.', $j['reverse']);
+    function buildJoin(array $info) {
+        if (isset($info['reverse'])) {
+            list($fmodel, $key) = explode('.', $info['reverse']);
             if (strpos($fmodel, '\\') === false) {
                 // Transfer namespace from this model
                 $fmodel = $this->meta['namespace']. '\\' . $fmodel;
             }
             // NOTE: It's ok if the forein meta data is not yet inspected.
-            $info = $fmodel::$meta['joins'][$key];
-            if (!is_array($info['constraint']))
+            $finfo = $fmodel::$meta['joins'][$key];
+            if (!$finfo['constraint']) {
                 throw new Exception\ModelConfigurationError(sprintf(
                     // `reverse` here is the reverse of an ORM relationship
                     '%s: Reverse does not specify any constraints'),
-                    $j['reverse']);
-            foreach ($info['constraint'] as $foreign => $local) {
+                    $info['reverse']);
+            }
+            foreach ($finfo['constraint'] as $foreign => $local) {
                 list($L,$field) = is_array($local) ? $local : explode('.', $local);
-                $constraint[$field ?: $L] = array($fmodel, $foreign);
+                $info['constraint'][$field ?: $L] = array($fmodel, $foreign);
             }
-            if (!isset($j['list']))
-                $j['list'] = true;
-            if (!isset($j['null']))
+            if (!isset($info['list']))
+                $info['list'] = true;
+            if (!isset($info['null']))
                 // By default, reverse releationships can be empty lists
-                $j['null'] = true;
+                $info['null'] = true;
+            unset($info['reverse']);
         }
-        elseif (isset($j['constraint'])) {
-            // Determine what the class of the foreign model is. Add the local
-            // namespace if it was implied.
-            foreach ($j['constraint'] as $local => $foreign) {
-                list($class, $field) = $constraint[$local]
-                    = is_array($foreign) ? $foreign : explode('.', $foreign);
-                if ($local[0] == "'" || $field[0] == "'")
-                    continue;
-                if (!class_exists($class) && strpos($class, '\\') === false) {
-                    // Transfer namespace from this model
-                    $class = $this->meta['namespace']. '\\' . $class;
-                    $constraint[$local] = $foreign = array($class, $field);
-                }
-            }
-        }
-        if (isset($j['list']) && $j['list'] && !isset($j['broker'])) {
-            $j['broker'] = InstrumentedList::class;
-        }
-        if (isset($j['broker']) && !class_exists($j['broker'])) {
-            throw new Exception\ModelConfigurationError(sprintf(
-                '%s: List broker class does not exist', $j['broker']));
-        }
-        foreach ($constraint as $local => $foreign) {
-            list($class, $field) = $foreign;
-            if (!class_exists($class))
-                continue;
-            $j['fkey'] = $foreign;
-            $j['local'] = $local;
-            if (!isset($j['list']))
-                $j['list'] = false;
-        }
-        $j['constraint'] = $constraint;
-        
-        return $j;
+        return new JoinMeta($info, $this);
     }
 
     function addJoin($name, array $join) {
         $this->meta['joins'][$name] = $this->buildJoin($join);
     }
-    
+
     function getJoinInfoForEdge(array $edge, $name) {
         // Simplistic configuration -> specify 'target' and 'through' models
         $join = [
@@ -271,28 +218,26 @@ implements \ArrayAccess {
         if (isset($edge['target']) && isset($edge['through'])) {
             if (!class_exists($edge['target']))
                 throw new Exception\ModelConfigurationError(sprintf(
-                    '%s: Target model for edge `%s` does not exist', 
+                    '%s: Target model for edge `%s` does not exist',
                     $edge['target'], $name));
             if (!class_exists($edge['through']))
                 throw new Exception\ModelConfigurationError(sprintf(
                     '%s: Intermediate model for edge does not exist', $edge['through']));
-            
+
             // For this configuration, the `through` model is inspected for
             // a relationship to reverse
             foreach ($edge['through']::getMeta('joins') as $field=>$info) {
-                list($class, $pk) = $info['fkey'];
-                if ($class === $this->model) {
+                if ($info->foreign_model === $this->model) {
                     $join['reverse'] = sprintf("%s.%s", $edge['through'], $field);
                     break;
                 }
             }
-            
-            // The join information should have a `through` field which has 
-            // the intermediate model and the relation between it and the 
+
+            // The join information should have a `through` field which has
+            // the intermediate model and the relation between it and the
             // target model.
             foreach ($edge['through']::getMeta('joins') as $field=>$info) {
-                list($class, $pk) = $info['fkey'];
-                if ($class === $edge['target']) {
+                if ($info->foreign_model === $edge['target']) {
                     $join['through'] = [$field, $edge['target']];
                     break;
                 }

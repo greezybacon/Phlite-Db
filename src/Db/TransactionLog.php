@@ -207,9 +207,9 @@ extends Util\ArrayObject {
                     && ($foreign = $model->__ht__[$prop])
                     && $foreign instanceof Model\ModelBase
                     // ... and the fkey is not part of this model's pkey
-                    && !in_array($j['local'], $pk)
+                    && !$j->isLocal($pk)
                     // ... and the local fkey field is not set
-                    && null === $model->get($j['local'])
+                    && null === $model->get($j->local_pk)
                     // ... and the foreign object is new
                     && $foreign->__new__
                 ) {

@@ -172,16 +172,17 @@ abstract class SqlCompiler {
             // Propogate LEFT joins through other joins. That is, if a
             // multi-join expression is used, the first LEFT join should
             // result in further joins also being LEFT
-            if (isset($info['null']))
-                $null = $null || $info['null'];
-            $info['null'] = $null;
+            $null = $null || $info->null;
+            if ($null && !$info->null)
+                $info = $info->withNull();
 
             $tip = $leading;
             $leading = $leading ? "{$leading}__{$next}" : $next;
             $alias = $this->pushJoin($tip, $leading, $model, $info);
 
             // Roll to foreign model
-            list($model, $tail) = $info['fkey'];
+            $model = $info->foreign_model;
+            $tail = $info->foreign_pk;
             array_shift($path);
         }
         // There are two reasons to arrive here:

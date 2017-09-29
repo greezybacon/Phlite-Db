@@ -44,43 +44,18 @@ abstract class ModelBase {
         elseif (($joins = static::getMeta('joins')) && isset($joins[$field])) {
             $j = $joins[$field];
             // Support instrumented lists and such
-            if (isset($j['list']) && $j['list']) {
-                $class = $j['fkey'][0];
-                $meta = static::getMeta();
-                // Localize the foreign key constraint
-                foreach ($j['constraint'] as $local=>$foreign) {
-                    list($_klas, $F) = $foreign;
-                    $fkey[$F ?: $_klas] = ($local[0] == "'")
-                        ? trim($local, "'")
-                        : $this->__ht__[$local];
-                }
-                $v = $this->__ht__[$field] = new $j['broker'](
-                    // Send [ForeignModel, [Foriegn-Field => Local-Id], JoinInfo]
-                    array($class, $fkey, $j)
-                );
-                return $v;
+            if ($j->isList()) {
+                return $this->__ht__[$field] = $j->getList($this);
             }
             // Support relationships
-            elseif (isset($j['fkey'])) {
-                $criteria = array();
-                foreach ($j['constraint'] as $local => $foreign) {
-                    list(, $F) = $foreign;
-                    if ($local[0] == "'") {
-                        $criteria[$F] = trim($local,"'");
-                    }
-                    elseif ($F[0] == "'") {
-                        // Does not affect the local model
-                        continue;
-                    }
-                    else {
-                        if (!isset($this->__ht__[$local]))
-                            // NULL foreign key
-                            return null;
-                        $criteria[$F] = $this->__ht__[$local];
-                    }
+            elseif ($j->hasForeignKey()) {
+                list($foreign, $key) = $j->getForeignKey($this);
+                foreach ($key as $value) {
+                    if ($value === null)
+                        // NULL foreign key
+                        return null;
                 }
-                $class = $j['fkey'][0];
-                $v = $this->__ht__[$field] = $class::objects()->lookup($criteria);
+                $v = $this->__ht__[$field] = $foreign::objects()->lookup($key);
                 return $v;
             }
         }
@@ -152,32 +127,34 @@ abstract class ModelBase {
         $joins = static::getMeta('joins');
         if (isset($joins[$field])) {
             $j = $joins[$field];
-            if ($j['list'] && ($value instanceof InstrumentedList)) {
+            if ($j->isList() && ($value instanceof InstrumentedList)) {
                 // Magic list property
                 $this->__ht__[$field] = $value;
                 return;
             }
             if ($value === null) {
                 $this->__ht__[$field] = $value;
-                if (in_array($j['local'], static::$meta['pk'])) {
+                if ($j->isLocal(static::$meta['pk'])) {
                     // Reverse relationship — don't null out local PK
                     return;
                 }
                 // Pass. Set local field to NULL in logic below
             }
-            elseif ($value instanceof $j['fkey'][0]) {
+            elseif ($value instanceof $j->foreign_model) {
                 // Capture the object under the object's field name
                 $this->__ht__[$field] = $value;
-                $value = $value->get($j['fkey'][1]);
+                $value = $value->get($j->foreign_pk);
+                // XXX: Else throw error?
                 // Fall through to the standard logic below
             }
             else
                 throw new \InvalidArgumentException(
                     sprintf('Expecting NULL or instance of %s. Got a %s instead',
-                    $j['fkey'][0], is_object($value) ? get_class($value) : gettype($value)));
+                    $j->foreign_model, is_object($value) ? get_class($value) : gettype($value)));
 
             // Capture the foreign key id value
-            $field = $j['local'];
+            // XXX: Assumes simple foreign key
+            $field = $j->local_pk;
         }
         // elseif $field is part of a relationship, adjust the relationship
         elseif (($fks = static::getMeta('foreign_keys')) && isset($fks[$field])) {
@@ -196,7 +173,7 @@ abstract class ModelBase {
                 // new object_id value, the relationship to object should be
                 // cleared and rebuilt
                 unset($this->__ht__[$related]);
-        }     
+        }
         $this->__ht__[$field] = $value;
     }
     function __set($field, $value) {
@@ -313,12 +290,13 @@ abstract class ModelBase {
             if (isset($this->__ht__[$prop])
                 && ($foreign = $this->__ht__[$prop])
                 && $foreign instanceof self
-                && !in_array($j['local'], $pk)
-                && null === $this->get($j['local'])
+                && !$j->isLocal($pk)
+                && null === $this->get($j->local_pk)
             ) {
                 if ($foreign->__new__ && !$foreign->save())
                     return false;
-                $this->set($j['local'], $foreign->get($j['fkey'][1]));
+                foreach ($j->foreign_fields as $lfield=>$ffield)
+                    $this->set($lfield, $foreign->get($ffield));
             }
         }
 
@@ -375,17 +353,17 @@ abstract class ModelBase {
             foreach (static::getMeta('joins') as $prop => $j) {
                 if (isset($this->__ht__[$prop])
                     && ($foreign = $this->__ht__[$prop])
-                    && in_array($j['local'], $pk)
+                    && $j->isLocal($pk)
                 ) {
                     if ($foreign instanceof ModelBase
-                        && null === $foreign->get($j['fkey'][1])
+                        && null === $foreign->get($j->foreign_pk)
                     ) {
-                        $foreign->set($j['fkey'][1], $this->get($j['local']));
+                        $j->update($this, $foreign);
                     }
                     elseif ($foreign instanceof InstrumentedList) {
                         foreach ($foreign as $item) {
-                            if (null === $item->get($j['fkey'][1]))
-                                $item->set($j['fkey'][1], $this->get($j['local']));
+                            if (null === $item->get($j->foreign_pk))
+                                $j->update($this, $item);
                         }
                     }
                 }

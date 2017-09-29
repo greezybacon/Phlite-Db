@@ -44,7 +44,7 @@ extends \PHPUnit_Framework_TestCase {
 
     function testOverlayMethod() {
         $o1 = Northwind\Order::objects()->lookup(10248);
-        $this->assertEquals($o1->getTotal(), 454.0);
+        $this->assertEquals(454.0, $o1->getTotal());
 
         $item = $o1->items->findFirst(['ProductID' => 11]);
         $this->assertEquals($item->getQuantityShippable(), 13);
