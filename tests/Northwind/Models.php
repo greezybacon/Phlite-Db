@@ -99,7 +99,7 @@ extends Model\ModelBase {
             'OrderID'       => new Fields\IntegerField(),
             'ProductID'     => new Fields\IntegerField(),
             'UnitPrice'     => new Fields\DecimalField(),
-            'Quantity'      => new Fields\IntegerField(),
+            'Quantity'      => new Fields\DecimalField(),
             'Discount'      => new Fields\DecimalField(),
         ]);
     }
