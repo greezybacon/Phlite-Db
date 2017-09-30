@@ -43,11 +43,11 @@ extends \PHPUnit_Framework_TestCase {
     }
 
     function testOverlayMethod() {
-        $o1 = Northwind\Order::objects()->lookup(10248);
-        $this->assertEquals(454.0, $o1->getTotal());
+        $o1 = Northwind\Order::objects()->lookup(10257);
+        $this->assertEquals(1119.90, $o1->getTotal());
 
-        $item = $o1->items->findFirst(['ProductID' => 11]);
-        $this->assertEquals($item->getQuantityShippable(), 13);
+        $item = $o1->items->findFirst(['ProductID' => 77]);
+        $this->assertEquals(15, $item->getQuantityShippable());
         $this->assertFalse($item->shouldReorder());
     }
 }
