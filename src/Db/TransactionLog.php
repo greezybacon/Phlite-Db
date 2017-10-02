@@ -209,7 +209,7 @@ extends Util\ArrayObject {
                     // ... and the fkey is not part of this model's pkey
                     && !$j->isLocal($pk)
                     // ... and the local fkey field is not set
-                    && null === $model->get($j->local_pk)
+                    && $j->isLocalNull($model)
                     // ... and the foreign object is new
                     && $foreign->__new__
                 ) {

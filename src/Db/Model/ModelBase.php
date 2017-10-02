@@ -143,18 +143,14 @@ abstract class ModelBase {
             elseif ($value instanceof $j->foreign_model) {
                 // Capture the object under the object's field name
                 $this->__ht__[$field] = $value;
-                $value = $value->get($j->foreign_pk);
-                // XXX: Else throw error?
-                // Fall through to the standard logic below
+                foreach ($j->foreign_fields as $lfield=>$ffield)
+                    $this->set($lfield, $value->get($ffield));
+                return;
             }
             else
                 throw new \InvalidArgumentException(
                     sprintf('Expecting NULL or instance of %s. Got a %s instead',
                     $j->foreign_model, is_object($value) ? get_class($value) : gettype($value)));
-
-            // Capture the foreign key id value
-            // XXX: Assumes simple foreign key
-            $field = $j->local_pk;
         }
         // elseif $field is part of a relationship, adjust the relationship
         elseif (($fks = static::getMeta('foreign_keys')) && isset($fks[$field])) {
@@ -258,23 +254,39 @@ abstract class ModelBase {
         return true;
     }
 
+    const SAVE_REFETCH       = 0x0001;
+    const SAVE_FOREIGN_FIRST = 0x0002;
+
     /**
      * Commit changes made to this model to the database. Returns TRUE if the
      * model was successfully persisted to the database and FALSE otherwise.
      *
+     * Parameters:
+     * $flags - (bitset) various behavior settings:
+     *   SAVE_REFETCH
+     *     Refetch the entire record from the database after sending the
+     *     insert or udpate. This would be useful if the defaults for the
+     *     field are database-generated values like NOW().
+     *
+     *   SAVE_FOREIGN_FIRST (default)
+     *     If a relationship property of this model is associated with a
+     *     foreign *new* object, then those objects will be saved and the
+     *     keys will be updated in this model locally before this model is
+     *     saved.
+     *
+     * Returns:
+     * TRUE if database operation suceeded. FALSE otherwise.
+     *
      * Caveats:
-     * If a relationship property of this model is associated with a foreign
-     * *new* object, then those objects will be saved and the keys will be
-     * updated in this model locally before this model is saved. Then, after
-     * this model is saved, if this object has relationships where the primary
-     * key of this model is a foreign key for a related model, the primary key
-     * value is automatically set in the foreign models.
+     * After this model is saved, if this object has relationships where the
+     * primary key of this model is a foreign key for a related model, the
+     * primary key value is automatically set in the foreign models.
      *
      * Signals:
-     * `model.updated` - if an existing record was updated for this model
-     * `model.created` - if a new record was inserted for this model
+     * Db\Signals\ModelUpdated - if an existing record was updated
+     * Db\Signals\ModelCreated - if a new record was inserted for this model
      */
-    function save($refetch=false) {
+    function save($flags=self::SAVE_FOREIGN_FIRST) {
         if ($this->__deleted__)
             throw new Exception\OrmError('Trying to update a deleted object');
 
@@ -282,6 +294,9 @@ abstract class ModelBase {
         // newly created object
         $pk = static::getMeta('pk');
         $wasnew = $this->__new__;
+        # Coincidently, true & 0x01 => 0x01, which provides backwards
+        # compatibility with true
+        $refetch = $flags & self::SAVE_REFETCH;
 
         // First, if any foreign properties of this object are connected to
         // another *new* object, then save those objects first and set the
@@ -291,12 +306,14 @@ abstract class ModelBase {
                 && ($foreign = $this->__ht__[$prop])
                 && $foreign instanceof self
                 && !$j->isLocal($pk)
-                && null === $this->get($j->local_pk)
+                && $j->isLocalNull($this)
             ) {
+                if (!($flags & self::SAVE_FOREIGN_FIRST))
+                    throw new Exception\OrmError(sprintf(
+                        '%s: Must save foreign objects first', $prop));
                 if ($foreign->__new__ && !$foreign->save())
                     return false;
-                foreach ($j->foreign_fields as $lfield=>$ffield)
-                    $this->set($lfield, $foreign->get($ffield));
+                $j->update($foreign, $this);
             }
         }
 
@@ -356,13 +373,13 @@ abstract class ModelBase {
                     && $j->isLocal($pk)
                 ) {
                     if ($foreign instanceof ModelBase
-                        && null === $foreign->get($j->foreign_pk)
+                        && $j->isForeignNull($foreign)
                     ) {
                         $j->update($this, $foreign);
                     }
                     elseif ($foreign instanceof InstrumentedList) {
                         foreach ($foreign as $item) {
-                            if (null === $item->get($j->foreign_pk))
+                            if ($j->isForeignNull($item))
                                 $j->update($this, $item);
                         }
                     }

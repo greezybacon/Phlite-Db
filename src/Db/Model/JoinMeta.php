@@ -134,9 +134,28 @@ implements \ArrayAccess {
         return true;
     }
 
+    function isLocalNull(ModelBase $model) {
+        foreach ($this->foreign_fields as $local=>$T)
+            if ($model->get($local) === null)
+                return true;
+        return false;
+    }
+
+    function isForeignNull(ModelBase $model) {
+        foreach ($this->foreign_fields as $foreign)
+            if ($model->get($foreign) === null)
+                return true;
+        return false;
+    }
+
     function update(ModelBase $local, ModelBase $foreign) {
         foreach ($this->foreign_fields as $lfield=>$ffield)
             $foreign->set($ffield, $local->get($lfield));
+    }
+
+    function isSimple() {
+        // Simple, like not composite
+        return count($this->foreign_fields) === 1;
     }
 
     /**

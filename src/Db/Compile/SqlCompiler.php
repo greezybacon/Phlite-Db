@@ -166,23 +166,21 @@ abstract class SqlCompiler {
             $J = $model::getMeta('joins');
             if (!isset($J[$next]))
                 break;
-
-            $info = $J[$next];
+            $join = $J[$next];
 
             // Propogate LEFT joins through other joins. That is, if a
             // multi-join expression is used, the first LEFT join should
             // result in further joins also being LEFT
-            $null = $null || $info->null;
-            if ($null && !$info->null)
-                $info = $info->withNull();
+            $null = $null || $join->null;
+            if ($null && !$join->null)
+                $join = $join->withNull();
 
             $tip = $leading;
             $leading = $leading ? "{$leading}__{$next}" : $next;
-            $alias = $this->pushJoin($tip, $leading, $model, $info);
+            $alias = $this->pushJoin($tip, $leading, $model, $join);
 
             // Roll to foreign model
-            $model = $info->foreign_model;
-            $tail = $info->foreign_pk;
+            $model = $join->foreign_model;
             array_shift($path);
         }
         // There are two reasons to arrive here:
@@ -192,8 +190,10 @@ abstract class SqlCompiler {
         if (count($path) > 0) {
             if (!$model::getMeta()->hasField($path[0])) {
                 // Use the $tail, if possible
-                if (isset($tail) && $model::getMeta()->hasField($tail)) {
-                    array_unshift($path, $tail);
+                if (isset($join) && $join->isSimple()) {
+                    foreach ($join->foreign_fields as $ffield)
+                        break;
+                    array_unshift($path, $ffield);
                 }
                 // If it's an annotation, that's ok
                 elseif (!isset($this->annotations[$path[0]])) {
@@ -208,8 +208,14 @@ abstract class SqlCompiler {
         }
         // (2) the path is empty. In this case, a field for the transform
         // needs to be specified.
-        elseif (isset($tail)) {
-            $path = [$tail];
+        elseif (count($path) === 0 && isset($join)) {
+            if ($join->isSimple()) {
+                foreach ($join->foreign_fields as $ffield)
+                    break;
+                array_unshift($path, $ffield);
+            }
+            // TODO: For composite foreign keys, a composite tuple field and
+            // comparison will be required
         }
 
         // If no join was followed, use the root model alias. Fall back to
