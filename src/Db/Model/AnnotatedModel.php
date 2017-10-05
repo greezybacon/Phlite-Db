@@ -1,6 +1,14 @@
 <?php
 namespace Phlite\Db\Model;
 
+class AnnotatedModelMeta
+extends ModelMeta {
+    function getSchema() {
+        // Don't re-inspect the database -- or whatever
+        return $this->parent->getSchema();
+    }
+}
+
 /**
  * AnnotatedModel
  *
@@ -36,6 +44,7 @@ extends \\{$fqclass} {
     use \\$local_ns\\{$extra}AnnotatedModelTrait;
 
     static \$meta = array();
+    static \$metaclass = \\$local_ns\\AnnotatedModelMeta::class;
 
     static function __hydrate(\$ht=false, \$annotations=false) {
         \$instance = parent::__hydrate(\$ht);

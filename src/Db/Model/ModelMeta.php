@@ -149,7 +149,7 @@ implements \ArrayAccess {
         $this->subclasses[$child->model] = $child;
         // Merge 'joins' settings (instead of replacing)
         if (isset($this->meta['joins'])) {
-            $meta['joins'] = array_merge(@$meta['joins'] ?: array(),
+            $meta['joins'] = array_merge($meta['joins'] ?? array(),
                 $this->meta['joins']);
         }
         return $meta + $this->meta + $child::$defaults + self::$defaults;
@@ -171,6 +171,10 @@ implements \ArrayAccess {
             return true;
 
         return $this->parent->isSubclassOf($model);
+    }
+
+    function getParent() {
+        return $this->parent;
     }
 
     /**
