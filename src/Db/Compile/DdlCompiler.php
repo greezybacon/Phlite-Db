@@ -41,7 +41,7 @@ abstract class DdlCompiler {
                 else
                     $constraints[] = $extras;
             }
-            $columns[] = sprintf("%s %s", $this->quote($name), $coldef);
+            $columns[] = sprintf("%s %s", $this->quote($F->column ?? $name), $coldef);
         }
         return new Statement(sprintf('CREATE TABLE %s (%s%s)',
             $this->quote($meta['table']),

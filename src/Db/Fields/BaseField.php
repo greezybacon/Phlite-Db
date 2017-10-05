@@ -12,6 +12,7 @@ abstract class BaseField {
         'nullable' => true,
         'default' => null,
         'pk' => false,
+        'column' => null,
     );
     static $transforms;
 
