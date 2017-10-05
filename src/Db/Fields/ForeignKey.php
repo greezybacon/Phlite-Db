@@ -77,6 +77,10 @@ extends BaseField {
         return $this->ffield->from_export($value);
     }
 
+    function getTransform($name, $lhs) {
+        return $this->ffield->getTransform($name, $lhs);
+    }
+
     function addToSchema($name, Model\SchemaBuilder $builder) {
         $fmodel = $this->fmodel;
         $ffield = $this->ffield;
