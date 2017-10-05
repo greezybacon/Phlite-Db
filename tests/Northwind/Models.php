@@ -11,9 +11,6 @@ extends Model\ModelBase {
         'table' => 'Products',
         'pk' => ['ProductID'],
         'joins' => [
-            'supplier' => [
-                'constraint' => ['SupplierID' => 'Supplier.SupplierID'],
-            ],
             'category' => [
                 'constraint' => ['CategoryID' => 'Category.CategoryID'],
             ],
@@ -27,7 +24,10 @@ extends Model\ModelBase {
         $b->addFields([
             'ProductID'     => new Fields\AutoIdField(['pk' => true]),
             'ProductName'   => new Fields\TextField(['length' => 40]),
-            'SupplierID'    => new Fields\ForeignKey(Supplier::class, ['join' => 'supplier']),
+            'SupplierID'    => new Fields\ForeignKey(Supplier::class, [
+                'join' => 'supplier',
+                'reverse_name' => 'products',
+            ]),
             'CategoryID'    => new Fields\IntegerField(),
             'QuantityPerUnit' => new Fields\TextField(['length' => 20]),
             'UnitPrice'     => new Fields\DecimalField(),
@@ -54,11 +54,6 @@ extends Model\ModelBase {
     static $meta = [
         'table' => 'Suppliers',
         'pk' => ['SupplierID'],
-        'joins' => [
-            'products' => [
-                'reverse' => 'Product.supplier',
-            ],
-        ],
     ];
 
     static function buildSchema(SchemaBuilder $b) {
@@ -118,9 +113,6 @@ extends Model\ModelBase {
         'table' => 'Orders',
         'pk' => ['OrderID'],
         'joins' => [
-            'customer' => [
-                'constraint' => ['CustomerID' => 'Customer.CustomerID'],
-            ],
             'employee' => [
                 'constraint' => ['EmployeeID' => 'Employee.EmployeeID'],
             ],
@@ -139,7 +131,10 @@ extends Model\ModelBase {
     static function buildSchema(SchemaBuilder $b) {
         $b->addFields([
             'OrderID'       => new Fields\AutoIdField(['pk' => true]),
-            'CustomerID'    => new Fields\ForeignKey(Customer::class, ['join'=>'orders']),
+            'CustomerID'    => new Fields\ForeignKey(Customer::class, [
+                'join' => 'customer',
+                'reverse_name' => 'orders'
+            ]),
             'EmployeeID'    => new Fields\IntegerField(),
             'OrderDate'     => new Fields\DatetimeField(),
             'RequiredDate'  => new Fields\DatetimeField(),
@@ -317,11 +312,6 @@ extends Model\ModelBase {
     static $meta = [
         'table' => 'Customers',
         'pk' => ['CustomerID'],
-        'joins' => [
-            'orders' => [
-                'reverse' => 'Order.customer',
-            ],
-        ],
         'edges' => [
             'demographics' => [
                 'target' => Demographic::class,
