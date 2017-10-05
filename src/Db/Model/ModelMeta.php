@@ -205,18 +205,20 @@ implements \ArrayAccess {
     function buildJoin($j) {
         $constraint = array();
         if (isset($j['reverse'])) {
-            list($fmodel, $key) = explode('.', $j['reverse']);
+            list($fmodel, $key) = is_string($j['reverse'])
+                ? explode('.', $j['reverse']) : $j['reverse'];
             if (strpos($fmodel, '\\') === false) {
                 // Transfer namespace from this model
                 $fmodel = $this->meta['namespace']. '\\' . $fmodel;
             }
             // NOTE: It's ok if the forein meta data is not yet inspected.
             $info = $fmodel::$meta['joins'][$key];
-            if (!is_array($info['constraint']))
+            if (!is_array($info['constraint'])) {
                 throw new Exception\ModelConfigurationError(sprintf(
                     // `reverse` here is the reverse of an ORM relationship
-                    '%s: Reverse does not specify any constraints'),
-                    $j['reverse']);
+                    '%s: Reverse does not specify any constraints',
+                    $j['reverse']));
+            }
             foreach ($info['constraint'] as $foreign => $local) {
                 list($L,$field) = is_array($local) ? $local : explode('.', $local);
                 $constraint[$field ?: $L] = array($fmodel, $foreign);
@@ -371,7 +373,7 @@ implements \ArrayAccess {
      * Convenience method to return the schema defined for the model.
      */
     function getSchema() {
-        $builder = new SchemaBuilder();
+        $builder = new SchemaBuilder($this);
         $this->model::buildSchema($builder);
         return $builder->getFields();
     }
