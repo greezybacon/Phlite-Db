@@ -122,10 +122,16 @@ implements \ArrayAccess {
             return $meta;
 
         if (!$meta['view']) {
-            if (!$meta['table'])
-                throw new Exception\ModelConfigurationError(
-                    sprintf('%s: Model is not abstract and does not define meta.table', $model));
-            elseif (!$meta['pk'])
+            if (!$meta['table']) {
+                // Assume class name without namespace, camelCase converted
+                // to underscores and lower cased
+                $class_name = preg_replace('/(?<=[a-z])[A-Z]/', '_$0',
+                    $class->getShortName());
+                $meta['table'] = strtolower($class_name);
+            }
+            if (!$meta['pk'])
+                // TODO: Look this up out of the fields later? Since a field
+                // can be declared to be a `pk`
                 throw new Exception\ModelConfigurationError(
                     sprintf('%s: Model does not define meta.pk', $model));
         }
