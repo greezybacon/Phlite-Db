@@ -142,7 +142,7 @@ extends BaseField {
                 'constraint' => [
                     $this->ffield_name => [$lmeta->model, $name]
                 ],
-                'list' => true,
+                'list' => !$this instanceof OneToOneField,
                 'null' => true,
             ]);
         }
