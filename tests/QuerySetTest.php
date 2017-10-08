@@ -101,13 +101,13 @@ extends \PHPUnit_Framework_TestCase {
     function testExists() {
         // Anyone handling Seattle?
         $seattle = Northwind\Employee::objects()
-            ->filter(['territories__territory__TerritoryDescription' => 'Seattle']);
+            ->filter(['territories__TerritoryDescription' => 'Seattle']);
 
         // Looks like there is
         $this->assertTrue($seattle->exists());
 
         $seattle = Northwind\Employee::objects()
-            ->filter(['territories__territory__TerritoryDescription' => 'Podunk']);
+            ->filter(['territories__TerritoryDescription' => 'Podunk']);
         // and a fetch
         $this->assertFalse($seattle->exists(true));
     }
@@ -115,7 +115,7 @@ extends \PHPUnit_Framework_TestCase {
     function testLeftJoinPropagation() {
         $total = count(Northwind\Employee::objects());
         $handled = Northwind\Employee::objects()
-            ->annotate(['territory_count' => Util\Aggregate::COUNT('territories__territory__region')]);
+            ->annotate(['territory_count' => Util\Aggregate::COUNT('territories__region')]);
 
         // The regex searches for LEFT JOIN followed by JOIN not preceeded by LEFT
         $this->assertNotRegexp('/LEFT JOIN .+? ((?<!LEFT )JOIN)/', (string) $handled,

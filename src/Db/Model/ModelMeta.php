@@ -288,20 +288,19 @@ implements \ArrayAccess {
             if (!class_exists($edge['through']))
                 throw new Exception\ModelConfigurationError(sprintf(
                     '%s: Intermediate model for edge does not exist', $edge['through']));
-            
-            // For this configuration, the `through` model is inspected for
-            // a relationship to reverse
+
+            // Identify the middle model fkey (through) and the target model
+            // fkey (target)
             foreach ($edge['through']::getMeta('joins') as $field=>$info) {
                 list($class, $pk) = $info['fkey'];
                 if ($class === $this->model) {
-                    $join['reverse'] = sprintf("%s.%s", $edge['through'], $field);
+                    $join['reverse'] = [$edge['through'], $field];
                     break;
                 }
             }
-            
-            // The join information should have a `through` field which has 
-            // the intermediate model and the relation between it and the 
-            // target model.
+
+            // For this configuration, the `through` model is inspected for
+            // a relationship to reverse
             foreach ($edge['through']::getMeta('joins') as $field=>$info) {
                 list($class, $pk) = $info['fkey'];
                 if ($class === $edge['target']) {

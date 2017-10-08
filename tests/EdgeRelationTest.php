@@ -50,4 +50,11 @@ extends \PHPUnit_Framework_TestCase {
         $this->assertEquals($item->getQuantityShippable(), 13);
         $this->assertFalse($item->shouldReorder());
     }
+
+    function testFilterAcrossEdge() {
+        # Number of orders requiring a backorder slip (if filled today)
+        $this->assertCount(160,
+            Northwind\Order::objects()->filter(['details__UnitsInStock' => 0])
+        );
+    }
 }

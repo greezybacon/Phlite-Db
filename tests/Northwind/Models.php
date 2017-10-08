@@ -91,7 +91,10 @@ extends Model\ModelBase {
 
     static function buildSchema(SchemaBuilder $b) {
         $b->addFields([
-            'OrderID'       => new Fields\IntegerField(),
+            'OrderID'       => new Fields\ForeignKey(Order::class, [
+                'reverse_name' => 'items',
+                'join' => 'order',
+            ]),
             'ProductID'     => new Fields\IntegerField(),
             'UnitPrice'     => new Fields\DecimalField(),
             'Quantity'      => new Fields\IntegerField(),
@@ -121,7 +124,7 @@ extends Model\ModelBase {
             ],
         ],
         'edges' => [
-            'items' => [
+            'details' => [
                 'target' => Product::class,
                 'through' => OrderDetail::class
             ]

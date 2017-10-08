@@ -182,7 +182,16 @@ abstract class SqlCompiler {
 
             // Roll to foreign model
             list($model, $tail) = $info['fkey'];
-            array_shift($path);
+
+            // If the path at this point is a many-to-many relation, then the
+            // `through` component needs to be added and the foreign model will
+            // become the `target` of the relation
+            if (isset($info['through'])) {
+                list($path[0],) = $info['through'];
+            }
+            else {
+                array_shift($path);
+            }
         }
         // There are two reasons to arrive here:
         // (1) the next item in the path does not represent a join. In this
