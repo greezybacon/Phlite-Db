@@ -1,11 +1,17 @@
 <?php
 namespace Phlite\Db\Model;
 
+use Phlite\Db\Exception;
 use Phlite\Db\Fields;
 
 class SchemaBuilder {
+    protected $meta;
     protected $fields = array();
     protected $constraints = array();
+
+    function __construct(ModelMeta $modelMeta) {
+        $this->meta = $modelMeta;
+    }
 
     function addFields($fields) {
         foreach ($fields as $name=>$F)
@@ -14,6 +20,7 @@ class SchemaBuilder {
 
     function addField($name, Fields\BaseField $field) {
         $this->fields[$name] = $field;
+        $field->addToSchema($name, $this);
     }
 
     function addConstraints($constraints) {
@@ -36,5 +43,9 @@ class SchemaBuilder {
     // And for the more magical stuff
     function getJoins() {
 
+    }
+
+    function getModelMeta() {
+        return $this->meta;
     }
 }

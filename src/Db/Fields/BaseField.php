@@ -12,6 +12,7 @@ abstract class BaseField {
         'nullable' => true,
         'default' => null,
         'pk' => false,
+        'column' => null,
     );
     static $transforms;
 
@@ -79,6 +80,25 @@ abstract class BaseField {
 
     function __isset($option) {
         return isset($this->options[$option]);
+    }
+
+    function __set($option, $value) {
+        if (!array_key_exists($option, $this->options))
+            throw new \Exception(sprintf(
+                "%s: Field option does not exist", $option));
+        $this->options[$option] = $value;
+    }
+
+    /**
+     * Allow fields to interact with the schema creation process. Useful for
+     * more magical fields like ForeignKey which influence the schema.
+     *
+     * Parameters:
+     * $name - name of the field
+     * $builder - SchemaBuilder instance used to describe the schema
+     */
+    function addToSchema($name, Model\SchemaBuilder $builder) {
+        // abstract -- pass
     }
 
     /**
