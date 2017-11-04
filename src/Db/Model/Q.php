@@ -1,10 +1,9 @@
 <?php
 
-namespace Phlite\Db\Util;
+namespace Phlite\Db\Model;
 
 use Phlite\Db\Compile\SqlCompiler;
 use Phlite\Db\Exception;
-use Phlite\Db\Model;
 
 class Q
 implements \Serializable {

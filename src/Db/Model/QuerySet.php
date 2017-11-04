@@ -62,14 +62,14 @@ implements \IteratorAggregate, \ArrayAccess, \Serializable, \Countable {
 
     function filter() {
         foreach (func_get_args() as $Q) {
-            $this->constraints[] = $Q instanceof Util\Q ? $Q : new Util\Q($Q);
+            $this->constraints[] = $Q instanceof Q ? $Q : new Q($Q);
         }
         return $this;
     }
 
     function exclude() {
         foreach (func_get_args() as $Q) {
-            $this->constraints[] = $Q instanceof Util\Q ? $Q->negate() : Util\Q::not($Q);
+            $this->constraints[] = $Q instanceof Q ? $Q->negate() : Q::not($Q);
         }
         return $this;
     }

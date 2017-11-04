@@ -11,7 +11,8 @@ use Phlite\Db\Manager;
 use Phlite\Db\Model\ModelBase;
 use Phlite\Db\Model\QuerySet;
 use Phlite\Db\Model\QuerysetView;
-use Phlite\Db\Util;
+use Phlite\Db\Model\Q;
+use Phlite\Db\Util\Expression;
 
 class Compiler extends SqlCompiler {
     static $platform = 'mysql';
@@ -53,7 +54,7 @@ class Compiler extends SqlCompiler {
             $constraints[] = "$lhs = $rhs";
         }
         // Support extra join constraints
-        if ($extra instanceof Util\Q) {
+        if ($extra instanceof Model\Q) {
             $constraints[] = $this->compileQ($extra, $model);
         }
         if (!isset($rmodel))
@@ -139,7 +140,7 @@ class Compiler extends SqlCompiler {
             if (is_array($sort)) {
                 list($sort, $dir) = $sort;
             }
-            if ($sort instanceof Util\Expression) {
+            if ($sort instanceof Expression) {
                 $field = $sort->toSql($this, $model);
             }
             else {
@@ -155,7 +156,7 @@ class Compiler extends SqlCompiler {
                 else
                     list($field) = $this->getField($sort, $model);
             }
-            if ($field instanceof Util\Expression)
+            if ($field instanceof Expression)
                 $field = $field->toSql($this, $model);
             // TODO: Throw exception if $field can be indentified as
             //       invalid
@@ -232,7 +233,7 @@ class Compiler extends SqlCompiler {
             foreach ($queryset->values as $alias=>$v) {
                 list($f) = $this->getField($v, $model);
                 $unaliased = $f;
-                if ($f instanceof Util\Expression)
+                if ($f instanceof Expression)
                     $fields[$f->toSql($this, $model, $alias)] = true;
                 else {
                     if (!is_int($alias))
@@ -283,7 +284,7 @@ class Compiler extends SqlCompiler {
         // Add in SELECT extras
         if (isset($queryset->extra['select'])) {
             foreach ($queryset->extra['select'] as $name=>$expr) {
-                if ($expr instanceof Util\Expression)
+                if ($expr instanceof Expression)
                     $expr = $expr->toSql($this, false, $name);
                 else
                     $expr = sprintf('%s AS %s', $expr, $this->quote($name));
@@ -361,7 +362,7 @@ class Compiler extends SqlCompiler {
         foreach ($pk as $f) {
             $criteria[$f] = @$model->__dirty__[$f] ?: $model->get($f);
         }
-        $sql .= ' WHERE '.$this->compileQ(new Util\Q($criteria), $model);
+        $sql .= ' WHERE '.$this->compileQ(new Q($criteria), $model);
         if ($limit1)
             $sql .= ' LIMIT 1';
 
@@ -380,7 +381,7 @@ class Compiler extends SqlCompiler {
         $table = $model::getMeta('table');
 
         $where = ' WHERE '.implode(' AND ',
-            $this->compileConstraints(array(new Util\Q($model->pk)), $model));
+            $this->compileConstraints(array(new Q($model->pk)), $model));
         $sql = 'DELETE FROM '.$this->quote($table).$where;
         if ($limit1)
             $sql .= ' LIMIT 1';

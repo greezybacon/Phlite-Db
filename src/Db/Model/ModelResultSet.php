@@ -3,7 +3,6 @@
 namespace Phlite\Db\Model;
 
 use Phlite\Db\Manager;
-use Phlite\Db\Util;
 
 class ModelResultSet
 extends CachedResultSet {
@@ -37,8 +36,8 @@ extends CachedResultSet {
      */
     function findAll($criteria, $limit=false) {
         $records = array();
-        if (!$criteria instanceof Util\Q)
-            $criteria = new Util\Q($criteria);
+        if (!$criteria instanceof Q)
+            $criteria = new Q($criteria);
         foreach ($this as $record) {
             if ($criteria->matches($record))
                 $records[] = $record;

@@ -342,9 +342,9 @@ abstract class SqlCompiler {
      * represented in the resulting CompiledExpression instance.
      *
      * Parameters:
-     * $Q - (Util\Q) constraint represented in a Q instance
+     * $Q - (Model\Q) constraint represented in a Q instance
      * $model - (string) root model class for all the field references in
-     *      the Util\Q instance
+     *      the Model\Q instance
      *
      * Returns:
      * (CompiledExpression) object containing the compiled expression (with
@@ -352,12 +352,12 @@ abstract class SqlCompiler {
      * of the CompiledExpression will allow the compiler to place the
      * constraint properly in the WHERE or HAVING clause appropriately.
      */
-    function compileQ(Util\Q $Q, $model) {
+    function compileQ(Model\Q $Q, $model) {
         $filter = array();
         $type = CompiledExpression::TYPE_WHERE;
         foreach ($Q->constraints as $field=>$value) {
             // Handle nested constraints
-            if ($value instanceof Util\Q) {
+            if ($value instanceof Model\Q) {
                 $filter[] = $T = $this->compileQ($value, $model);
                 // Bubble up HAVING constraints
                 if ($T instanceof CompiledExpression
@@ -371,7 +371,7 @@ abstract class SqlCompiler {
                     $f = $field . '__' . $f;
                     $criteria[$f] = $v;
                 }
-                $filter[] = $this->compileQ(new Util\Q($criteria), $model);
+                $filter[] = $this->compileQ(new Model\Q($criteria), $model);
             }
             // Handle simple field = <value> constraints
             else {
