@@ -94,11 +94,11 @@ class Session {
         return $rv;
     }
 
-    function rollback() {
+    function rollback($restore=false) {
         if (!isset($this->transaction))
             throw new Exception\OrmError('Transaction not started');
 
-        $rv = $this->transaction->rollback();
+        $rv = $this->transaction->rollback($restore);
         unset($this->transaction);
 
         // XXX: The internal model cache will likely contain references to
@@ -113,5 +113,22 @@ class Session {
             throw new Exception\OrmError('No transaction specified to be retried');
 
         $transaction->retry($this);
+    }
+
+    function revert() {
+        if ($this->transaction->isStarted())
+            return $this->rollback(true);
+
+        return $this->transaction->revert();
+    }
+
+    function reset() {
+        if (!isset($this->transaction))
+            return true;
+
+        if ($this->transaction->isStarted())
+            throw new Exception\OrmError('Cannot reset an open transaction. Use `commit` or `rollback`');
+
+        return $this->transaction->reset();
     }
 }

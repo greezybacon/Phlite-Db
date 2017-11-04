@@ -20,27 +20,21 @@ use Phlite\Util;
  * the ::iterJournal() method which will send the recently added items in
  * order, oldest first. Items retrieved from the journal are automatically
  * removed.
- *
- * Log-Entry-Structure:
- * Internally, the log is stored as a list of arrays with the change type,
- * the model instance involved, and the dirty list. The dirty list itself is
- * a keyed array containing information about the old and new values updated
- * in the model instance.
- *
- * $model_pk => array(
- *      TYPE_UPDATE,
- *      <ModelBase instance>,
- *      array(
- *          $field => array(
- *              $old,
- *              $new
- *          ),
- *      ),
- *  );
  */
 class TransactionLog
 extends Util\ArrayObject {
+    static $uid=0;
     var $history;
+    var $id;
+
+    function __construct(/* Iterable */ $iterable=array()) {
+        parent::__construct($iterable);
+        $this->id = ++static::$uid;
+    }
+
+    function getId() {
+        return $this->id;
+    }
 
     protected function getKey(Model\ModelBase $model) {
         if ($model->__new__)
@@ -55,18 +49,15 @@ extends Util\ArrayObject {
      */
     function add(Model\ModelBase $model) {
         $key = $this->getKey($model);
-        $_dirty = null;
+        $dirty = $this->getDirtyList($model);
         if (isset($this->storage[$key])) {
             // Type is immutable once in the log
-            list($type,,$_dirty) = $this->log[$key];
+            return $this->storage[$key]->update($dirty);
         }
-        else {
-            $type = $model->__new__
-                ? TransactionCoordinator::TYPE_INSERT
-                : TransactionCoordinator::TYPE_UPDATE;
-        }
-        $dirty = $this->getDirtyList($model, $_dirty);
-        return $this[$key] = array($type, $model, $dirty);
+        $type = $model->__new__
+            ? TransactionCoordinator::TYPE_INSERT
+            : TransactionCoordinator::TYPE_UPDATE;
+        return $this[$key] = new TransactionLogEntry($type, $model, $dirty);
     }
 
     /**
@@ -80,9 +71,9 @@ extends Util\ArrayObject {
         // would be able to recreate the record
         $dirty = array();
         foreach ($model->getDbFields() as $f=>$v) {
-            $dirty[$f] = array($v, null);
+            $dirty[$f] = array(null, $v);
         }
-        return $this[$key] = array(
+        return $this[$key] = new TransactionLogEntry(
             TransactionCoordinator::TYPE_DELETE,
             $model, $dirty);
     }
@@ -98,8 +89,7 @@ extends Util\ArrayObject {
         if (!isset($this->storage[$key]))
             return false;
 
-        list($type) = $this->storage[$key];
-        return $type = TransactionCoordinator::TYPE_DELETE;
+        $this->storage[$key]->isDeleted();
     }
 
     /**
@@ -130,21 +120,13 @@ extends Util\ArrayObject {
     function reverse() {
         $reverse = array();
         $log = new static();
-        foreach ($this as $key=>$info) {
-            list($type, $model, $dirty) = $info;
-            switch ($type) {
-            case TransactionCoordinator::TYPE_INSERT:
-                $type = TransactionCoordinator::TYPE_DELETE;
-                break;
-            case TransactionCoordinator::TYPE_DELETE:
-                $type = TransactionCoordinator::TYPE_INSERT;
-                break;
-            }
+        foreach ($this as $key=>$entry) {
+            $type = $entry->getReverseType();
             $rdirty = array();
             foreach ($dirty as $f=>$old_new) {
                 $rdirty[$f] = array_reverse($old_new);
             }
-            $log[$key] = array($type, $model, $rdirty);
+            $log[$key] = new TransactionLogEntry($type, $model, $rdirty);
         }
         return $log;
     }
@@ -195,7 +177,7 @@ extends Util\ArrayObject {
     function getSortedJournal() {
         $journal = $this->getJournal();
         $journal->sort(function($record) {
-            list($type, $model, $dirty) = $record;
+            $model = $record->getModel();
             // If the model has references to foreign primary keys, then
             // those objects should be saved first.
             $fkeys = 0;
@@ -231,6 +213,10 @@ extends Util\ArrayObject {
         $this->clear();
     }
 
+    function __clone() {
+        $this->id = ++static::$uid;
+    }
+
     /**
      * If this log was previously ::reset(), then this will retrieve the
      * previous content of the log. If multiple resets have been issued,
@@ -238,7 +224,12 @@ extends Util\ArrayObject {
      * ::getPrevious() calls. The oldest log will return NULL for a
      * previous history request.
      */
-    function getPrevious() {
-        return $this->history;
+    function getPrevious($transaction_id=false) {
+        $history = $this->history;
+        if ($transaction_id)
+            while ($history->getId() != $transaction_id)
+                if (!($history = $history->getPrevious()))
+                    throw new \Exception("{$transaction_id}: No such transaction in this history");
+        return $history;
     }
 }

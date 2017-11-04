@@ -208,6 +208,10 @@ abstract class ModelBase {
             $this->set($field, $value);
     }
 
+    function getDbFields() {
+        return $this->__ht__;
+    }
+
     function __clone() {
         $this->__new__ = true;
         $this->__deleted__ = false;
@@ -267,6 +271,9 @@ abstract class ModelBase {
      * `model.deleted` after successful delete
      */
     function delete() {
+        if ($this->__new__)
+            throw new Exception\OrmError("Trying to delete a model which has not been sent to the database");
+
         try {
             $ex = static::objects()->deleteModel($this);
             if ($ex === false)
@@ -344,9 +351,6 @@ abstract class ModelBase {
             return false;
         }
 
-        // Reset anything marked dirty as it is not synced with the database
-        $this->__dirty__ = array();
-
         if ($wasnew) {
             // XXX: Ensure AUTO_INCREMENT is set for the field
             if (count($pk) === 1 && !$refetch) {
@@ -362,6 +366,7 @@ abstract class ModelBase {
             $data = array('dirty' => $this->__dirty__);
             Signals\ModelUpdated::send($this, $data);
         }
+
         # Refetch row from database
         if ($refetch) {
             // Preserve non database information such as list relationships
@@ -394,6 +399,7 @@ abstract class ModelBase {
             // a copy
             ModelInstanceManager::cache($this);
         }
+        // Reset anything marked dirty as it is now synced with the database
         $this->__dirty__ = array();
         return true;
     }

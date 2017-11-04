@@ -4,6 +4,11 @@ use Phlite\Test\Northwind;
 
 class BasicSessionTest
 extends \PHPUnit_Framework_TestCase {
+    function tearDown() {
+        // Will trigger an error if a session is left open
+        Db\Manager::getSession()->reset();
+    }
+
     function testCreateSession() {
         // Create a new product
         $product = new Northwind\Product([
@@ -56,5 +61,7 @@ extends \PHPUnit_Framework_TestCase {
         $this->assertNotNull($category->CategoryID);
         $this->assertNotNull($product->ProductID);
         $this->assertNotNull($product->CategoryID);
+
+        $session->rollback();
     }
 }

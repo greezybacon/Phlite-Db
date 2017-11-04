@@ -1,9 +1,9 @@
 <?php
 namespace Phlite\Db\Migrations;
 
+use Phlite\Db\Exception;
 use Phlite\Db\Model;
 use Phlite\Db\Model\Migrations\Migration;
-use Phlite\Db\Router;
 
 class LoadFixtures
 extends Operation {
@@ -47,6 +47,11 @@ extends Operation {
             $backend = $router(get_class($model));
             if (!$backend->saveModel($model))
                 return false;
+            // XXX: This is code duplication. Perhaps the model should be
+            //      saved with its own save() method.
+            $model->__new__ = false;
+            Model\ModelInstanceManager::cache($model);
+            $model->__dirty__ = array();
             $loaded++;
         }
         return $loaded;

@@ -81,7 +81,7 @@ class TransactionCoordinator {
         $this->captureBackend($model);
         $record = $this->log->add($model);
         if ($this->mode & self::FLAG_AUTOFLUSH)
-            return $this->play($record);
+            return $record->send();
     }
 
     function delete(Model\ModelBase $model) {
@@ -97,7 +97,7 @@ class TransactionCoordinator {
         $backend = Router::getBackend($model);
         $bkkey = spl_object_hash($backend);
 
-        if ($this->started && !isset($this->backend[$bkkey])) {
+        if ($this->started && count($this->backends) && !isset($this->backends[$bkkey])) {
             if (!$this->distributed) {
                 $this->rollback();
                 throw new Exception\OrmError('Cannot add a backend to an open local transaction. Transaction must be started distributed');
@@ -156,6 +156,10 @@ class TransactionCoordinator {
         $this->distributed = $distributed;
     }
 
+    function isStarted() {
+        return $this->started;
+    }
+
     /**
      * Send all dirty records to the database. This does not imply a commit,
      * it just syncs the underlying databases and calls the save callbacks
@@ -164,18 +168,8 @@ class TransactionCoordinator {
      */
     function flush() {
         $this->start();
-        foreach ($this->log->getSortedJournal() as $tmd) {
-            $this->play($tmd);
-        }
-    }
-
-    protected function play($tmd) {
-        list($type, $model, $dirty) = $tmd;
-        if ($type === self::TYPE_DELETE) {
-            return $model->delete();
-        }
-        else {
-            return $model->save();
+        foreach ($this->log->getSortedJournal() as $entry) {
+            $entry->send();
         }
     }
 
@@ -241,13 +235,7 @@ class TransactionCoordinator {
      * Returns:
      * (boolean) TRUE if the rollback succeeded, and FALSE otherwise.
      */
-    function rollback($restore=false) {
-        // Anything currently dirty is no longer dirty
-        foreach ($this->log->iterJournal() as $tmd) {
-            list($type, $model, $dirty) = $tmd;
-            $model->__rollback($dirty);
-        }
-
+    function rollback($restore=true) {
         if (!$this->started)
             // Yay! nothing to do at the database layer
             return true;
@@ -263,24 +251,24 @@ class TransactionCoordinator {
         }
 
         if ($restore) {
-            // Don't send to the database, nor start a transaction. This will
-            // attempt to synchronize the state or the models before the
-            // transaction log was started.
-            foreach ($log as $record) {
-                list($type, $model, $dirty) = $tmd;
-                if ($type == TransactionCoordinator::TYPE_INSERT) {
-                    $model_class = get_class($model);
-                    $model = new $model_class($dirty);
-                }
-                elseif ($type == TransactionCoordinator::TYPE_DELETE) {
-                    Model\ModelInstanceManager::uncache($model);
-                }
-                else {
-                    foreach ($dirty as $f=>$v)
-                        $model->set($f, $v);
-                }
-            }
+            $this->revert();
         }
+        else {
+            // Anything currently dirty is no longer dirty
+            $this->log->clear();
+        }
+        return true;
+    }
+
+    function revert() {
+        // Don't send to the database, nor start a transaction. This will
+        // attempt to synchronize the state or the models before the
+        // transaction log was started.
+        foreach ($this->log as $entry) {
+            $entry->revert();
+        }
+        // Then, the log should not be reused
+        $this->log->clear();
     }
 
     /**
@@ -288,11 +276,13 @@ class TransactionCoordinator {
      * current transaction, starting a new transaction, and playing the
      * current transaction log in reverse. That is, inserts are played as
      * deletes and so forth.
+     *
+     * The changes applied are not automatically committed.
      */
-    function revert() {
+    function undo($transaction_id=false) {
         $this->rollback();
         $this->start($this->distributed);
-        $this->replayLog($this->log->reverse());
+        $this->replayLog($this->log->getPrevious($transaction_id)->reverse());
     }
 
     /**
@@ -302,8 +292,14 @@ class TransactionCoordinator {
      * >>> $session->replayLog($session->getLog());
      */
     function replayLog(TransactionLog $log) {
-        foreach ($log as $record) {
-            $this->play($record);
+        foreach ($log as $entry) {
+            $entry->send();
         }
+    }
+
+    function retry($commit=true) {
+        $this->replayLog($this->log);
+        if (!$commit)
+            return $this->commit(false);
     }
 }
