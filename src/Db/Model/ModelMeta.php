@@ -379,7 +379,7 @@ implements \ArrayAccess {
      * Convenience method to return the schema defined for the model.
      */
     function getSchema() {
-        $builder = new SchemaBuilder($this);
+        $builder = new Schema\SchemaBuilder($this);
         $this->model::buildSchema($builder);
         return $builder->getFields();
     }

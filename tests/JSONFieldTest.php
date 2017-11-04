@@ -1,13 +1,13 @@
 <?php
 namespace Phlite\Test\Northwind;
 
-use Phlite\Db\Model;
+use Phlite\Db\Model\Schema\SchemaBuilder;
 use Phlite\Db\Fields;
 
 class ProductWithData
 extends Product {
     static $meta = [];
-    static function buildSchema(Model\SchemaBuilder $editor) {
+    static function buildSchema(SchemaBuilder $editor) {
         parent::buildSchema($editor);
         $editor->addField('data', new Fields\JSONField());
     }

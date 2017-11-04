@@ -234,7 +234,7 @@ abstract class ModelBase {
         return isset($key) ? $M->offsetGet($key) : $M;
     }
 
-    static function buildSchema(SchemaBuilder $builder) {
+    static function buildSchema(Schema\SchemaBuilder $builder) {
         return static::getMeta()->getFields(false);
     }
 

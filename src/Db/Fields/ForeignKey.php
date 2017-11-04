@@ -5,6 +5,7 @@ use Phlite\Db;
 use Phlite\Db\Backend;
 use Phlite\Db\Exception;
 use Phlite\Db\Model;
+use Phlite\Db\Model\Schema;
 
 /**
  * Adds a REFERENCES clause to the create and alter SQL for database platforms
@@ -81,7 +82,7 @@ extends BaseField {
         return $this->ffield->getTransform($name, $lhs);
     }
 
-    function addToSchema($name, Model\SchemaBuilder $builder) {
+    function addToSchema($name, Schema\SchemaBuilder $builder) {
         $fmodel = $this->fmodel;
         $ffield = $this->ffield;
         $fmeta = $fmodel::getMeta();

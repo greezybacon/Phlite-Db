@@ -1,15 +1,16 @@
 <?php
-namespace Phlite\Db\Model;
+namespace Phlite\Db\Model\Schema;
 
 use Phlite\Db\Exception;
 use Phlite\Db\Fields;
+use Phlite\Db\Model;
 
 class SchemaBuilder {
     protected $meta;
     protected $fields = array();
     protected $constraints = array();
 
-    function __construct(ModelMeta $modelMeta) {
+    function __construct(Model\ModelMeta $modelMeta) {
         $this->meta = $modelMeta;
     }
 

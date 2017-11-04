@@ -3,7 +3,7 @@ namespace Phlite\Test\Northwind;
 
 use Phlite\Db\Fields;
 use Phlite\Db\Model;
-use Phlite\Db\Model\SchemaBuilder;
+use Phlite\Db\Model\Schema\SchemaBuilder;
 
 class Product
 extends Model\ModelBase {

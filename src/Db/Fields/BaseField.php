@@ -6,6 +6,7 @@ use Phlite\Db\Compile\SqlCompiler;
 use Phlite\Db\Compile\Lookup;
 use Phlite\Db\Exception;
 use Phlite\Db\Model;
+use Phlite\Db\Model\Schema;
 
 abstract class BaseField {
     static $defaults = array(
@@ -97,7 +98,7 @@ abstract class BaseField {
      * $name - name of the field
      * $builder - SchemaBuilder instance used to describe the schema
      */
-    function addToSchema($name, Model\SchemaBuilder $builder) {
+    function addToSchema($name, Schema\SchemaBuilder $builder) {
         // abstract -- pass
     }
 
