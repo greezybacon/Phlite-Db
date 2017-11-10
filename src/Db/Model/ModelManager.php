@@ -3,6 +3,14 @@ namespace Phlite\Db\Model;
 
 use Phlite\Db\Router;
 
+/**
+ * Lightweight interface which helps connect a model class with (1) queryset
+ * objects for fetching data, (2) a lookup method to utilize a model cache (a
+ * short-circuit over fetching single instances), (3) a interface to the
+ * ActiveRecord pattern allowing access to save updates and delete a model
+ * object, and (4) the ability to bind the model and queryset with a
+ * particular database Backend.
+ */
 class ModelManager
 implements \Countable {
     protected $model;

@@ -123,11 +123,7 @@ implements \ArrayAccess {
 
         if (!$meta['view']) {
             if (!$meta['table']) {
-                // Assume class name without namespace, camelCase converted
-                // to underscores and lower cased
-                $class_name = preg_replace('/(?<=[a-z])[A-Z]/', '_$0',
-                    $class->getShortName());
-                $meta['table'] = strtolower($class_name);
+                $meta['table'] = $this->classToTableName($class);
             }
             if (!$meta['pk'])
                 // TODO: Look this up out of the fields later? Since a field
@@ -143,6 +139,21 @@ implements \ArrayAccess {
         }
 
         return $meta;
+    }
+
+    /**
+     * Function to convert the name of the model class to the name of the
+     * corresponding table. This can be overridden in a subclass to define
+     * application-specific behavior. The default is the short name of the
+     * class (without the namespace), camelCase converted to leading
+     * underscores and converted to lowercase (App\MyTable -> my_table)
+     */
+    function classToTableName(\ReflectionClass $class) {
+        // Assume class name without namespace, camelCase converted
+        // to underscores and lower cased
+        $class_name = preg_replace('/(?<=[a-z])[A-Z]/', '_$0',
+            $class->getShortName());
+        return strtolower($class_name);
     }
 
     /**

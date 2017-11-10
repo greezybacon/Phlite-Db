@@ -238,6 +238,22 @@ abstract class ModelBase {
         return isset($key) ? $M->offsetGet($key) : $M;
     }
 
+    /**
+     * Define the schema (columns) for this model in PHP. By default, the
+     * fields are inspected from the database. However, for better
+     * compabatibility between databases and for automated creation of the
+     * columns in migrations, the schema can be defined here in the model:
+     *
+     * class User
+     * extends ModelBase {
+     *     static function buildSchema($builder) {
+     *         $builder->addFields([
+     *             'id' => new Fields\AutoIdField(),
+     *             'name' => new Fields\TextField(['length'=>64]),
+     *         ]);
+     *     }
+     * }
+     */
     static function buildSchema(Schema\SchemaBuilder $builder) {
         return static::getMeta()->getFields(false);
     }
@@ -245,9 +261,9 @@ abstract class ModelBase {
     /**
      * objects
      *
-     * Retrieve a QuerySet for this model class which can be used to fetch
+     * Retrieve a ModelManager for this model class which can be used to fetch
      * models from the connected database. Subclasses can override this
-     * method to apply forced constraints on the QuerySet.
+     * method to apply forced constraints on the QuerySet, or to
      */
     static function objects() {
         $M = static::$manager;

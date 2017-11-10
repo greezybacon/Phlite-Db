@@ -238,7 +238,8 @@ abstract class SqlCompiler {
      * former, the field name is prepended with the alias of the target model
      *
      * FIXME:
-     * Disambiguate the field_name used as the return.
+     * Disambiguate the field_name used as the return, which could be either
+     * an annotation or a SQL field text.
      */
     function getFieldTransform(array $path, $model, $alias) {
         $field_name = array_shift($path);
