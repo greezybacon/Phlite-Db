@@ -92,7 +92,7 @@ extends \PHPUnit_Framework_TestCase {
 
         $this->assertContains(' HAVING ', (string) $big_guns);
         $this->assertNotContains(' WHERE ', (string) $big_guns);
-        $this->assertEquals(7, count($big_guns));
+        $this->assertEquals(9, count($big_guns));
 
         foreach ($big_guns as $bg)
             $this->assertTrue($bg->gross_sales > 20000);
