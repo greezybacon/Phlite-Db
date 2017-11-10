@@ -9,7 +9,8 @@ extends Product {
     static $meta = [];
     static function buildSchema(SchemaBuilder $builder) {
         parent::buildSchema($builder);
-        $builder->addField('data', new Fields\JSONField());
+        $builder->addField('data', new Fields\JSONField([
+            'object' => true]));
     }
 }
 
