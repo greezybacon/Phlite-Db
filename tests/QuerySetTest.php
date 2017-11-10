@@ -20,8 +20,8 @@ extends \PHPUnit_Framework_TestCase {
         // See how many items nancy sold
         $nancy_sales = Northwind\Employee::objects()
             ->filter(['EmployeeID' => 1])
-            ->aggregate(Util\Aggregate::SUM('sales__items__quantity'))
-            ->order_by('-sales__items__quantity')
+            ->aggregate(Util\Aggregate::SUM('sales__items__Quantity'))
+            ->order_by('-sales__items__quantity__sum')
             ->values_flat()
             ->limit(1);
 
@@ -213,9 +213,10 @@ extends \PHPUnit_Framework_TestCase {
                     ->aggregate(['product_count' => Util\Aggregate::COUNT('products')])
                     ->order_by('-product_count')
                     ->limit(5)
-            ]);
+            ])
+            ->distinct('OrderID');
 
-        $this->assertCount(5, $big_5);
+        $this->assertCount(471, $big_5);
     }
 }
 
