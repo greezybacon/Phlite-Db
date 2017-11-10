@@ -140,11 +140,11 @@ implements \JsonSerializable {
 
     function offsetUnset($a) {
         $this->fillTo($a);
-        $this->storage[$a]->delete();
+        unset($this->storage[$a]);
     }
     function offsetSet($a, $b) {
         $this->fillTo($a);
-        $this->storage[$a]->delete();
+        unset($this->storage[$a]);
         $this->add($b, $a);
     }
 

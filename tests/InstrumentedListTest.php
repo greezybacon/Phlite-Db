@@ -34,20 +34,31 @@ extends \PHPUnit_Framework_TestCase {
         $this->assertEquals($chai->supplier->CompanyName, 'Exotic Liquids');
     }
 
-    function testRelationRemoveAndDelete() {
+    function testRelationRemove() {
         $supplier = Northwind\Supplier::objects()->first();
         $before = $supplier->products->count();
         $juice = $supplier->products->findFirst([
             'ProductName' => 'Prune Juice']);
 
         // Test remove without delete
+        $this->assertNotNull($juice);
         $supplier->products->remove($juice, false);
         $this->assertNull($juice->SupplierID);
         $this->assertEquals($before - 1, $supplier->products->count());
+        $supplier->products->add($juice);
+        $this->assertNotNull($juice->SupplierID);
+    }
+
+    function testRelationRemoveAndDelete() {
+        $supplier = Northwind\Supplier::objects()->first();
+        $before = $supplier->products->count();
+        $juice = $supplier->products->findFirst([
+            'ProductName' => 'Prune Juice']);
 
         // Add back and test remove with delete
-        $supplier->products->add($juice);
+        $this->assertNotNull($juice);
         $this->assertTrue($supplier->products->remove($juice, true));
+        $this->assertNull($juice->SupplierID);
         $this->assertTrue($juice->__deleted__);
         $this->assertEquals($before, $supplier->products->count());
     }
