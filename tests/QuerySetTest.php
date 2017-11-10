@@ -172,6 +172,38 @@ extends \PHPUnit_Framework_TestCase {
         Northwind\Order::objects();
     }
 
+    function testNestedSelectInSelect() {
+        // Find the first order for each employee, add it as nested select in
+        // the SELECT clause of the outer query
+        $orders = Northwind\Employee::objects()
+            ->annotate([
+                'FirstOrder' => Northwind\Order::objects()
+                    ->filter(['employee' => new Util\OuterRef('EmployeeID')])
+                    ->aggregate(Util\Aggregate::MIN('OrderDate'))
+            ]);
+
+        $answers = [
+            // FIXME: Provide type coercion (interpret support) for
+            //        annotations. This assumes a particular date format
+            //        observed on SQLite
+            [1, '1996-07-17 00:00:00.000'],
+            [2, '1996-07-25 00:00:00.000'],
+            [3, '1996-07-08 00:00:00.000'],
+            [4, '1996-07-08 00:00:00.000'],
+            [5, '1996-07-04 00:00:00.000'],
+            [6, '1996-07-05 00:00:00.000'],
+            [7, '1996-08-26 00:00:00.000'],
+            [8, '1996-07-22 00:00:00.000'],
+            [9, '1996-07-12 00:00:00.000'],
+        ];
+
+        foreach (izip($orders, $answers) as list($O, $A)) {
+            $this->assertEquals($A[0], $O->EmployeeID);
+            $this->assertEquals($A[1], $O->FirstOrder);
+        }
+        $this->assertEquals(count($answers), $orders->count());
+    }
+
     function testNestedSelectAsIn() {
         // Orders from the top 5 suppliers
         $big_5 = Northwind\Order::objects()
@@ -184,5 +216,33 @@ extends \PHPUnit_Framework_TestCase {
             ]);
 
         $this->assertCount(5, $big_5);
+    }
+}
+
+/**
+ * Zip multiple arrays or iterators together. Each iteration of this iterator
+ * will yield a list with one item from each of the iterators received. The
+ * generator will exit when any of the iterators is exhausted. Effectively,
+ * the result will be as short as the shortest iterator received.
+ */
+function izip(...$iterables) {
+    $iters = [];
+    foreach ($iterables as $I) {
+        if (is_array($I))
+            $I = new \ArrayIterator($I);
+        while ($I instanceof \IteratorAggregate)
+            $I = $I->getIterator();
+        $I->rewind();
+        $iters[] = $I;
+    }
+    for (;;) {
+        $next = [];
+        foreach ($iters as $i) {
+            if (!$i->valid())
+                return;
+            $next[] = $i->current();
+            $i->next();
+        }
+        yield $next;
     }
 }
