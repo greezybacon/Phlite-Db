@@ -11,6 +11,10 @@ use Phlite\Db\Model;
 abstract class Backend {
     var $charset;
 
+    static $featuresclass = Features::class;
+    static $features = array();
+    protected $_features;
+
     abstract function __construct(array $info);
 
     abstract function connect();
@@ -79,5 +83,20 @@ abstract class Backend {
             return false;
 
         return $ex;
+    }
+
+    function getFeatures() {
+        if (!isset($this->_features)) {
+            $this->_features = new static::$featuresclass(static::$features);
+        }
+        return $this->_features;
+    }
+
+    function hasFeature($name) {
+        return $this->getFeatures()->get($name) === true;
+    }
+
+    function getFeature($name) {
+        return $this->getFeatures()->get($name);
     }
 }

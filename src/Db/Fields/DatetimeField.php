@@ -20,6 +20,9 @@ extends Transform {
 
     function toSql($compiler, $model, $rhs) {
         // TODO: Determine actual database platform
+        if ($compiler->getBackend()->hasFeature('has_extract_function'))
+            return parent::toSql($compiler, $model, $rhs);
+
         $lhs = $this->buildLhs($compiler, $model);
         return "CAST(STRFTIME('%Y', {$lhs}) AS INT)";
     }

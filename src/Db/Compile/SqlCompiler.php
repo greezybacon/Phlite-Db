@@ -30,6 +30,10 @@ abstract class SqlCompiler {
         return $this->options['parent'];
     }
 
+    function getBackend() {
+        return $this->conn;
+    }
+
     /**
      * Split a path for a model object into several pieces:
      *

@@ -13,6 +13,11 @@ implements Db\Transaction {
       'DRIVER'    =>    Driver::class,
     ];
 
+    static $features = [
+        'has_extract_function' => false,
+        'has_interval_math' => false,
+    ];
+
     var $info;
     var $cnxn;
     protected $compiler;
