@@ -24,7 +24,8 @@ use Phlite\Util;
 class TransactionLog
 extends Util\ArrayObject {
     static $uid=0;
-    var $history;
+    protected $journal = array();
+    protected $history;
     var $id;
 
     function __construct(/* Iterable */ $iterable=array()) {
@@ -55,8 +56,8 @@ extends Util\ArrayObject {
             return $this->storage[$key]->update($dirty);
         }
         $type = $model->__new__
-            ? TransactionCoordinator::TYPE_INSERT
-            : TransactionCoordinator::TYPE_UPDATE;
+            ? TransactionLogEntry::TYPE_INSERT
+            : TransactionLogEntry::TYPE_UPDATE;
         return $this[$key] = new TransactionLogEntry($type, $model, $dirty);
     }
 
@@ -74,7 +75,7 @@ extends Util\ArrayObject {
             $dirty[$f] = array(null, $v);
         }
         return $this[$key] = new TransactionLogEntry(
-            TransactionCoordinator::TYPE_DELETE,
+            TransactionLogEntry::TYPE_DELETE,
             $model, $dirty);
     }
 
@@ -121,12 +122,7 @@ extends Util\ArrayObject {
         $reverse = array();
         $log = new static();
         foreach ($this as $key=>$entry) {
-            $type = $entry->getReverseType();
-            $rdirty = array();
-            foreach ($dirty as $f=>$old_new) {
-                $rdirty[$f] = array_reverse($old_new);
-            }
-            $log[$key] = new TransactionLogEntry($type, $model, $rdirty);
+            $log[$key] = $entry->getReverse();
         }
         return $log;
     }
@@ -138,7 +134,7 @@ extends Util\ArrayObject {
      */
     function offsetSet($offset, $item) {
         parent::offsetSet($offset, $item);
-        $this->journal[$offset] = 1;
+        $this->journal[] = $item;
     }
 
     /**
@@ -149,9 +145,8 @@ extends Util\ArrayObject {
      * returned.
      */
     function iterJournal() {
-        reset($this->journal);
-        while (list($key,) = each($this->journal)) {
-            yield $this->storage[$key];
+        foreach ($this->journal as $key=>$record) {
+            yield $record;
             unset($this->journal[$key]);
         }
     }
@@ -163,7 +158,9 @@ extends Util\ArrayObject {
      */
     function getJournal() {
         // Fetch and clear the journal
-        return new Util\ArrayObject($this->iterJournal());
+        $j = new Util\ArrayObject($this->journal);
+        $this->journal = array();
+        return $j;
     }
 
     /**
@@ -231,5 +228,15 @@ extends Util\ArrayObject {
                 if (!($history = $history->getPrevious()))
                     throw new \Exception("{$transaction_id}: No such transaction in this history");
         return $history;
+    }
+
+    /**
+     * (re)apply and entry to this log. This is generally used for retry and
+     * undoCommit operations.
+     */
+    function replay(TransactionCoordinator $trans) {
+        foreach ($this as $entry) {
+            $entry->replay($trans);
+        }
     }
 }

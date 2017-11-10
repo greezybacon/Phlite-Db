@@ -39,10 +39,7 @@ class TransactionCoordinator {
 
     const FLAG_AUTOFLUSH    = 0x0001;
     const FLAG_RETRY_COMMIT = 0x0002;
-
-    const TYPE_UPDATE = 1;
-    const TYPE_DELETE = 2;
-    const TYPE_INSERT = 3;
+    const FLAG_NO_TRACK     = 0x0004;
 
     function __construct(Session $session, $flags=0, $log=null) {
         $this->session = $session;
@@ -60,6 +57,11 @@ class TransactionCoordinator {
      *
      * FLAG_RETRY_COMMIT
      *      Retry the commit one time if the commit fails
+     *
+     * FLAG_NO_TRACK
+     *      Do not use a log to track the transaction changes. Perhaps a
+     *      performance boost. Cannot be used with FLAG_RETRY_COMMIT, because
+     *      commit retry requires a log.
      */
     function setFlag($mode) {
         $this->mode |= $mode;
@@ -173,6 +175,23 @@ class TransactionCoordinator {
         }
     }
 
+    /**
+     * Commit changes recorded in the session at the database layer. This is
+     * performed first by performing a flush() and sending any outstanding
+     * changes to the databases as part of the transaction. Then a COMMIT is
+     * requested, followed by a second COMMIT for distributed transactions.
+     *
+     * Parameters:
+     * retry - (boolean) if TRUE, then the transaction will be automatically 
+     *      replayed and attempted a second time if the COMMIT fails. This
+     *      might be useful for situations similar to Galera, where a
+     *      a transaction can fail simply because similar edits were made and
+     *      successfully committed on a neighbor server before this
+     *      transaction was completed with a commit.
+     *
+     *      If unspecified, then the FLAG_RETRY_COMMIT flag will be used to
+     *      provide the default.
+     */
     function commit($retry=null) {
         $this->flush();
 
@@ -181,30 +200,31 @@ class TransactionCoordinator {
             $retry = $this->mode & self::FLAG_RETRY_COMMIT > 0;
         }
 
+        $success = true;
         if (!$this->distributed) {
             // NOTE: There's only one backend here, but it's in a list
-            foreach ($this->backends as $bk) {
-                try {
-                    if (!$bk->commit())
-                        return false;
-                    $this->reset();
-                }
-                catch (Exception $ex) {
-                    // XXX: Rollback if unsuccessful?
-                }
+            reset($this->backends);
+            $bk = current($this->backends);
+            try {
+                if (!$bk->commit())
+                    $success = false;
             }
-            return true;
+            catch (\Exception $ex) {
+                // XXX: Rollback if unsuccessful?
+                throw $ex;
+            }
+        }
+        else {
+            foreach ($this->backends as $bk) {
+                if (!($success = $bk->tryCommit()))
+                    break;
+            }
+            foreach ($this->backends as $bk) {
+                if ($success)   $bk->finishCommit();
+                else            $bk->undoCommit();
+            }
         }
 
-        $success = true;
-        foreach ($this->backends as $bk) {
-            if (!($success = $bk->tryCommit()))
-                break;
-        }
-        foreach ($this->backends as $bk) {
-            if ($success)   $bk->finishCommit();
-            else            $bk->undoCommit();
-        }
         if (!$success) {
             // Attempt retry if configured
             if ($retry) {
@@ -213,29 +233,37 @@ class TransactionCoordinator {
                     return $success;
             }
 
-            // An exception is necessary here because the callbacks for
-            // the model updates have already been executed.
-            throw new Exception\OrmError('Distributed transaction commit failed');
+            if ($this->distributed)
+                // An exception is necessary here because the callbacks for
+                // the model updates have already been executed.
+                throw new Exception\OrmError('Distributed transaction commit failed');
         }
+
         $this->reset();
         return $success;
     }
 
-    function reset() {
+    function reset($rollback=false) {
+        if (!$this->started)
+            return true;
+
+        if ($rollback)
+            $this->rollback();
+
         $this->started = false;
         $this->log->reset();
     }
 
     /**
      * Parameters:
-     * $restore - (boolean:false), if set to TRUE, the original state of the
+     * $$revert - (boolean:false), if set to TRUE, the original state of the
      *      ORM models will be restored in memory after the transaction has
      *      been aborted in the database.
      *
      * Returns:
      * (boolean) TRUE if the rollback succeeded, and FALSE otherwise.
      */
-    function rollback($restore=true) {
+    function rollback($revert=true) {
         if (!$this->started)
             // Yay! nothing to do at the database layer
             return true;
@@ -245,30 +273,39 @@ class TransactionCoordinator {
         }
 
         // NOTE: There's only one backend here, but it's in a list
+        $success = true;
         foreach ($this->backends as $bk) {
-            if (!$bk->rollback())
-                return false;
+            if (!($rv = $bk->rollback()))
+                $success = $rv;
         }
 
-        if ($restore) {
+        if ($revert) {
             $this->revert();
         }
-        else {
-            // Anything currently dirty is no longer dirty
-            $this->log->clear();
-        }
-        return true;
+        $this->log->clear();
+        $this->started = false;
+        return $success;
     }
 
-    function revert() {
+    /**
+     * Undo everything applied in this log (everything not yet committed).
+     * All changes made to the models are undone. Then, the log is cleared
+     * so that further flushes and commits will not send the reverted
+     * changes to the database.
+     *
+     * This method should ot be used directly. Instead, it is intended to
+     * be used with ::rollback() so that a failed transaction can rolled
+     * back at the database layer, and then rolled back in memory in PHP
+     * (using this method).
+     */
+    function revert(TransactionLog $log=null) {
         // Don't send to the database, nor start a transaction. This will
         // attempt to synchronize the state or the models before the
         // transaction log was started.
-        foreach ($this->log as $entry) {
+        $log = $log ?: $this->log;
+        foreach ($log as $entry) {
             $entry->revert();
         }
-        // Then, the log should not be reused
-        $this->log->clear();
     }
 
     /**
@@ -279,10 +316,21 @@ class TransactionCoordinator {
      *
      * The changes applied are not automatically committed.
      */
-    function undo($transaction_id=false) {
-        $this->rollback();
+    function undoCommit($transaction_id=false) {
+        $previous = $this->log->getPrevious();
+        $this->reset();
         $this->start($this->distributed);
-        $this->replayLog($this->log->getPrevious($transaction_id)->reverse());
+        $this->revert($previous);
+        $this->replayLog($previous->reverse());
+        $this->flush();
+    }
+
+    /**
+     * Fetch the current transaction log ID, which can be used if it should
+     * be reverted by the ::undoCommit() method.
+     */
+    function getId() {
+        return $this->log->getId();
     }
 
     /**
@@ -292,13 +340,16 @@ class TransactionCoordinator {
      * >>> $session->replayLog($session->getLog());
      */
     function replayLog(TransactionLog $log) {
-        foreach ($log as $entry) {
-            $entry->send();
-        }
+        return $log->replay($this);
     }
 
+    /**
+     * Retry the log. This is performed by replaying the edits recorded in
+     * the log and then optionally sending them the database and requesting
+     * a commit.
+     */
     function retry($commit=true) {
-        $this->replayLog($this->log);
+        $this->log->replay();
         if (!$commit)
             return $this->commit(false);
     }

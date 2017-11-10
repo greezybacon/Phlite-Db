@@ -87,24 +87,22 @@ class Session {
         if (!isset($this->transaction))
             throw new Exception\OrmError('Transaction not started');
 
-        $rv = $this->transaction->commit();
-        if ($rv)
-            unset($this->transaction);
-
-        return $rv;
+        return $this->transaction->commit();
     }
 
     function rollback($restore=false) {
         if (!isset($this->transaction))
             throw new Exception\OrmError('Transaction not started');
 
-        $rv = $this->transaction->rollback($restore);
-        unset($this->transaction);
-
         // XXX: The internal model cache will likely contain references to
         // model objects whose changes were rolled back.
+        return $this->transaction->rollback($restore);
+    }
 
-        return $rv;
+    function undoCommit() {
+        if (!isset($this->transaction))
+            throw new Exception\OrmError('Transaction not started');
+        return $this->getTransaction()->undoCommit();
     }
 
     function retry($transaction=null) {
