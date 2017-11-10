@@ -1,6 +1,8 @@
 <?php
-
 namespace Phlite\Db\Model;
+
+use Phlite\Db\Compile\SqlCompiler;
+use Phlite\Db\Exception;
 
 class InstrumentedList
 extends ModelResultSet
@@ -87,14 +89,15 @@ implements \JsonSerializable {
      */
     function window($constraint, $evaluate=false) {
         $model = $this->model;
-        $fields = $model::getMeta()->getFieldNames();
+        $fields = $model::getMeta()->getFields();
         $key = $this->key;
         foreach ($constraint as $field=>$value) {
-            if (!is_string($field) || false === in_array($field, $fields))
-                throw new OrmException('InstrumentedList windowing must be performed on local fields only');
+            if (!is_string($field) || !isset($fields[$field]))
+                throw new Exception\OrmError('InstrumentedList windowing must be performed on local fields only');
             $key[$field] = $value;
         }
-        $list = new static(array($this->model, $key), $this->filter($constraint));
+        $list = new static(array($this->model, $key),
+            $this->objects()->filter($constraint));
         if ($evaluate)
             $list->setCache($this->findAll($constraint));
         return $list;
