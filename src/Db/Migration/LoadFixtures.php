@@ -4,12 +4,14 @@ namespace Phlite\Db\Migrations;
 use Phlite\Db\Exception;
 use Phlite\Db\Model;
 use Phlite\Db\Model\Migrations\Migration;
+use Phlite\Db\Transaction;
 
 class LoadFixtures
 extends Operation {
     protected $loader;
     protected $router;
     protected $verified = [];
+    protected $backends = [];
 
     function __construct(Model\Fixture\LoaderBase $loader) {
         $this->loader = $loader;
@@ -20,7 +22,7 @@ extends Operation {
         return true;
     }
     
-    protected function verifyModel($model) {
+    protected function verifyModel($model, $backend) {
         $class = get_class($model);
         if (isset($this->verified[$class]))
             return true;
@@ -35,18 +37,46 @@ extends Operation {
         if (!($this->verified[$class] = count($fields) > 0))
             throw new Exception\OrmError(
                 'Database table for model fixtures does not exist');
-        
+
+        if (!isset($this->backends[get_class($backend)])) {
+            $this->backends[get_class($backend)] = $backend;
+            if ($backend instanceof Transaction) {
+                $backend->beginTransaction();
+            }
+        }
+
+        return true;
+    }
+
+    protected function commit() {
+        foreach ($this->backends as $backend) {
+            if ($backend instanceof Transaction)
+                if (!$backend->commit())
+                    return false;
+        }
+        return true;
+    }
+
+    protected function rollback() {
+        foreach ($this->backends as $backend) {
+            if ($backend instanceof Transaction)
+                if (!$backend->rollback())
+                    return false;
+        }
         return true;
     }
 
     function apply($router) {
         $loaded = 0;
+
         // TODO: Use a transaction
         foreach ($this->loader as $model) {
-            $this->verifyModel($model);
             $backend = $router(get_class($model));
-            if (!$backend->saveModel($model))
+            $this->verifyModel($model, $backend);
+            if (!$backend->saveModel($model)) {
+                $this->rollback();
                 return false;
+            }
             // XXX: This is code duplication. Perhaps the model should be
             //      saved with its own save() method.
             $model->__new__ = false;
@@ -54,6 +84,10 @@ extends Operation {
             $model->__dirty__ = array();
             $loaded++;
         }
+
+        if (!$this->commit())
+            return false;
+
         return $loaded;
     }
 
