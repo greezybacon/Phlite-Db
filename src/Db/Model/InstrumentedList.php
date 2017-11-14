@@ -10,20 +10,20 @@ implements \JsonSerializable {
     var $key;
     var $queryset;
 
-    function __construct($fkey, $queryset=false,
-        $iterator=ModelInstanceManager::class
-    ) {
+    function __construct($fkey, $queryset=false) {
         list($model, $this->key) = $fkey;
         if (!$queryset) {
             $queryset = $model::objects()->filter($this->key);
             if ($related = $model::getMeta('select_related'))
                 $queryset->select_related($related);
         }
-        $iterator = is_callable($iterator)
-            ? $iterator($queryset) : new $iterator($queryset);
-        parent::__construct($iterator);
         $this->model = $model;
         $this->queryset = $queryset;
+        parent::__construct($this->setupIterator($queryset));
+    }
+
+    protected function setupIterator($queryset) {
+        return new ModelInstanceManager($queryset);
     }
 
     function add($object, $at=false) {

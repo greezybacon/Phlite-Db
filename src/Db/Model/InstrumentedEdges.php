@@ -15,8 +15,6 @@ extends ModelInstanceManager {
     function getOrBuild($modelClass, $fields, $cache=true) {
         $m = parent::getOrBuild($modelClass, $fields, $cache);
         if ($m && $modelClass == $this->middleModel) {
-            if (is_bool($m->get($this->relation)))
-                throw new \Exception();
             $m = AnnotatedModel::wrap($m->get($this->relation), $m);
         }
         return $m;
@@ -27,21 +25,20 @@ class InstrumentedEdges
 extends InstrumentedList {
     var $relation;
 
-    function __construct($fkey, $queryset=false,
-        $iterator=EdgeModelInstanceManager::class
-    ) {
+    function __construct($fkey, $queryset=false) {
         list($middleModel, , $join) = $fkey;
         if (!isset($join['through']))
             throw new \Exception('Edges must define a "through" model');
 
         list($this->relation, ) = $join['through'];
-        parent::__construct($fkey, $queryset, 
-        function($queryset) use ($iterator, $middleModel) {
-            return new $iterator($queryset, $middleModel, $this->relation);
-        });
-        $this->queryset = $this->queryset->select_related($this->relation);
+        parent::__construct($fkey, $queryset);
     }
-    
+
+    protected function setupIterator($queryset) {
+        $queryset = $this->queryset->select_related($this->relation);
+        return new EdgeModelInstanceManager($queryset, $this->model, $this->relation);
+    }
+
     function add($what, $glue=null) {
         // Since this is a many-to-many relationship, to add an object to the
         // list represented by this relationship, it is a record to the
