@@ -4,6 +4,7 @@ namespace Phlite\Db\Compile;
 
 use Phlite\Db\Backend;
 use Phlite\Db\Exception;
+use Phlite\Db\Fields\IsNullTransform;
 use Phlite\Db\Model;
 use Phlite\Db\Util;
 
@@ -62,7 +63,7 @@ abstract class SqlCompiler {
     /**
      * Check if the values match given the transform. This performs the same
      * operation as the database would in a filter() expression (which would
-     * be compiled into the WHERE clause). Howerver, the evaluation is
+     * be compiled into the WHERE clause). However, the evaluation is
      * performed in pure PHP.
      *
      * Parameters:
@@ -381,10 +382,11 @@ abstract class SqlCompiler {
             // Handle simple field = <value> constraints
             else {
                 list($field, $model, $transform, ) = $this->getField($field, $model);
-                if ($value === null)
-                    $filter[] = sprintf('%s IS NULL', $field);
-                else
-                    $filter[] = $transform->toSql($this, $model, $value);
+                if ($value === null) {
+                    $transform = new IsNullTransform($field);
+                    $value = true;
+                }
+                $filter[] = $transform->toSql($this, $model, $value);
 
                 if ($transform->isAggregate())
                     $type = CompiledExpression::TYPE_HAVING;
