@@ -127,7 +127,9 @@ implements \ArrayAccess {
             }
             if (!$meta['pk'])
                 // TODO: Look this up out of the fields later? Since a field
-                // can be declared to be a `pk`
+                // can be declared to be a `pk`. Also, some databases like
+                // SQLite and Oracle support an out-of-band field (rowid)
+                // which can uniquely identify a row without a pk
                 throw new Exception\ModelConfigurationError(
                     sprintf('%s: Model does not define meta.pk', $model));
         }

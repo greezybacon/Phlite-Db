@@ -17,7 +17,7 @@ extends CachedResultSet {
      * Example:
      * >>> $a = new User();
      * >>> $a->roles->add(Role::lookup(['name' => 'administator']));
-     * >>> $a->roles->findFirst(['roles__name__startswith' => 'admin']);
+     * >>> $a->roles->findFirst(['name__startswith' => 'admin']);
      * <Role: administrator>
      */
     function findFirst($criteria) {
