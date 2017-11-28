@@ -433,12 +433,11 @@ implements \ArrayAccess {
      * Parameters:
      * $props - array - List of fields to be passed to become the __ht__ of
      *      a hydrated model instance.
-     * $to_db - boolean:false - false when loading DB data, true when saving
      *
      * Returns:
      * Properties data as interpreted by the fields.
      */
-    function interpret($props, $to_db=false) {
+    function interpret(array $props) {
         $fieldnames = $this->meta['interpret'];
         if ($fieldnames === true)
             $fieldnames = $this->getFieldNames();
