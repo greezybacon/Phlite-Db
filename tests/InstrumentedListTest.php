@@ -63,14 +63,18 @@ extends \PHPUnit_Framework_TestCase {
         $this->assertEquals($before, $supplier->products->count());
     }
 
-    function testWindow() {
+    function testWindowEval() {
         $ohno = Northwind\Supplier::objects()->lookup(6);
         $this->assertNotNull($ohno);
 
         $available = $ohno->products->window(['Discontinued' => 0], true);
         $this->assertCount(3, $available);
+    }
 
-        // And using evaluate
+    function testWindowFetch() {
+        $ohno = Northwind\Supplier::objects()->lookup(6);
+        $this->assertNotNull($ohno);
+
         $available = $ohno->products->window(['Discontinued' => 0], false);
         $this->assertCount(3, $available);
     }

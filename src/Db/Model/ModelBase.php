@@ -186,7 +186,7 @@ abstract class ModelBase {
             $related = $fks[$field];
         }
         $old = isset($this->__ht__[$field]) ? $this->__ht__[$field] : null;
-        if ($old != $value) {
+        if ($old !== $value) {
             // isset should not be used here, because `null` should not be
             // replaced in the dirty array
             if (!array_key_exists($field, $this->__dirty__))
