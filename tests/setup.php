@@ -87,9 +87,9 @@ implements Db\Util\IContextManager {
     }
 
     function __enter() {
-        #$TI = $this->stderr->getTerminfo();
-        $this->stderr->write(#$TI->template(
-            "{setaf:GREEN}>>> Creating database data ...{sgr0}\n"); #);
+        $TI = $this->stderr->getTerminfo();
+        $this->stderr->write($TI->template(
+            "{setaf:GREEN}>>> Creating database data ...{sgr0}\n"));
         $initial = new \Phlite\Test\Northwind\InitialMigration();
         Db\Manager::migrate($initial);
         return $this;
