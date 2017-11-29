@@ -29,7 +29,11 @@ abstract class Migration {
      * That is, undo what would be done by the ::apply() method.
      */
     function revert($router) {
-        foreach (array_reverse($this->getOperations()) as $oper) {
+        $operations = array();
+        foreach ($this->getOperations() as $oper)
+            $operations[] = $oper;
+
+        foreach (array_reverse($operations) as $oper) {
             $oper->revert($router);
         }
         // Dump the model structure cache

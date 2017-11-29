@@ -44,7 +44,7 @@ implements Db\Util\IContextManager {
     function do_test($options) {
         global $argv;
         $_SERVER['argv'] = [$argv[0], dirname(__FILE__)];
-        \PHPUnit_TextUI_Command::main();
+        \PHPUnit_TextUI_Command::main(false);
     }
 
     function setupBackend($options) {
@@ -95,8 +95,11 @@ implements Db\Util\IContextManager {
         return $this;
     }
 
-    function __exit(\Error $e) {
+    function __exit($e) {
         $initial = new \Phlite\Test\Northwind\InitialMigration();
+        $TI = $this->stderr->getTerminfo();
+        $this->stderr->write($TI->template(
+            "{setaf:CYAN}>>> Destroying database data ...{sgr0}\n"));
         Db\Manager::migrate($initial, Db\Migrations\Migration::BACKWARDS);
     }
 }

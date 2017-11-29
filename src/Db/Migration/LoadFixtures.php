@@ -16,12 +16,12 @@ extends Operation {
     function __construct(Model\Fixture\LoaderBase $loader) {
         $this->loader = $loader;
     }
-    
+
     function verify($router, $direction=Migration::FORWARDS) {
         // This has to be deferred until we start loading
         return true;
     }
-    
+
     protected function verifyModel($model, $backend) {
         $class = get_class($model);
         if (isset($this->verified[$class]))
@@ -95,12 +95,18 @@ extends Operation {
         $loaded = 0;
         // TODO: Use a transaction
         foreach ($this->loader as $model) {
-            $this->verifyModel($model);
             $backend = $router(get_class($model));
-            if (!$backend->deleteModel($model))
+            $this->verifyModel($model, $backend);
+            if (!$backend->deleteModel($model)) {
+                $this->rollback();
                 return false;
+            }
             $loaded++;
         }
+
+        if (!$this->commit())
+            return false;
+
         return $loaded;
     }
 }

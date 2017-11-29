@@ -26,5 +26,5 @@ interface IContextManager {
     // that a try/except block in a decorated generator behaves exactly
     // as if the body of the generator were expanded in-line at the place
     // of the with-statement.
-    function __exit(\Error $e);
+    function __exit(/* \Error */ $e);
 }
