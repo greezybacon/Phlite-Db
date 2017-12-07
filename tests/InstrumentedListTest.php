@@ -67,6 +67,7 @@ extends \PHPUnit_Framework_TestCase {
         $ohno = Northwind\Supplier::objects()->lookup(6);
         $this->assertNotNull($ohno);
 
+        // Using evaluate (PHP)
         $available = $ohno->products->window(['Discontinued' => 0], true);
         $this->assertCount(3, $available);
     }
@@ -75,6 +76,7 @@ extends \PHPUnit_Framework_TestCase {
         $ohno = Northwind\Supplier::objects()->lookup(6);
         $this->assertNotNull($ohno);
 
+        // And using a fetch (database)
         $available = $ohno->products->window(['Discontinued' => 0], false);
         $this->assertCount(3, $available);
     }

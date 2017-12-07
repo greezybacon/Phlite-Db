@@ -44,6 +44,20 @@ implements \ArrayAccess, \Countable {
         return $this->storage;
     }
 
+    /**
+     * Disable database fetching on this list by providing a static list of
+     * objects. ::add() and ::remove() are still supported.
+     * XXX: Move this to a parent class?
+     */
+    function setCache(array $cache) {
+        if (count($this->storage) > 0)
+            throw new \Exception('Cache must be set before fetching records');
+        // Set cache and disable fetching
+        $this->reset();
+        $this->storage = $cache;
+        $this->eoi = true;
+    }
+
     function reset() {
         $this->eoi = false;
         $this->storage = array();
@@ -52,8 +66,7 @@ implements \ArrayAccess, \Countable {
     }
 
     function getIterator() {
-        $this->asArray();
-        return new \ArrayIterator($this->storage);
+        return new \ArrayIterator($this->asArray());
     }
 
     function offsetExists($offset) {
