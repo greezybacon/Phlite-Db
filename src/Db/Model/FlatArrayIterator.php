@@ -15,9 +15,13 @@ implements \IteratorAggregate {
         $backend = $this->queryset->getBackend();
         $stmt = $this->queryset->getQuery();
         $this->resource = $backend->getDriver($stmt);
-        while ($row = $this->resource->fetchRow())
-            yield $row;
 
-        $this->resource->close();
+        try {
+            while ($row = $this->resource->fetchRow())
+                yield $row;
+        }
+        finally {
+            $this->resource->close();
+        }
     }
 }

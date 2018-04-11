@@ -12,10 +12,17 @@ implements \IteratorAggregate {
     var $model;
     var $map;
     var $queryset;
+    var $annnotations;
+    var $defer;
+    var $stmt;
 
     function __construct($queryset) {
-        $this->queryset = $queryset;
         $this->model = $queryset->model;
+        $backend = Router::getBackend($this->model);
+        $this->stmt = $queryset->getQuery();
+        $this->resource = $backend->getDriver($this->stmt);
+        $this->annotations = $queryset->annotations;
+        $this->defer = $queryset->defer;
     }
 
     static function cache(ModelBase $model) {
@@ -70,7 +77,7 @@ implements \IteratorAggregate {
                 return null;
             }
         }
-        $annotations = $this->queryset->annotations;
+        $annotations = $this->annotations;
         $extras = array();
         // For annotations, drop them from the $fields list and add them to
         // an $extras list. The fields passed to the root model should only
@@ -89,7 +96,7 @@ implements \IteratorAggregate {
             // Construct and cache the object
             $m = $modelClass::__hydrate($fields);
             // XXX: defer may refer to fields not in this model
-            $m->__deferred__ = $this->queryset->defer;
+            $m->__deferred__ = $this->defer;
             $m->__onload();
             if ($cache)
                 static::cache($m);
@@ -156,18 +163,18 @@ implements \IteratorAggregate {
     }
 
     function getIterator() {
-        $backend = Router::getBackend($this->model);
-        $stmt = $this->queryset->getQuery();
-        $this->resource = $backend->getDriver($stmt);
         $this->resource->execute();
-        $map = $stmt->getMap();
+        $map = $this->stmt->getMap();
         $func = array($this->resource, ($map) ? 'fetchRow' : 'fetchArray');
 
-        while ($row = $func()) {
-            $model = $this->buildModel($row, $map);
-            yield $model;
+        try {
+            while ($row = $func()) {
+                $model = $this->buildModel($row, $map);
+                yield $model;
+            }
         }
-
-        $this->resource->close();
+        finally {
+            $this->resource->close();
+        }
     }
 }
