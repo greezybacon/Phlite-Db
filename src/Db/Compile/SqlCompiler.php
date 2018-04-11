@@ -381,12 +381,12 @@ abstract class SqlCompiler {
             }
             // Handle simple field = <value> constraints
             else {
-                list($field, $model, $transform, ) = $this->getField($field, $model);
+                list($field, $fmodel, $transform, ) = $this->getField($field, $model);
                 if ($value === null) {
                     $transform = new IsNullTransform($field);
                     $value = true;
                 }
-                $filter[] = $transform->toSql($this, $model, $value);
+                $filter[] = $transform->toSql($this, $fmodel, $value);
 
                 if ($transform->isAggregate())
                     $type = CompiledExpression::TYPE_HAVING;
