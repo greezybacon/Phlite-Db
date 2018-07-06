@@ -129,7 +129,7 @@ extends BaseField {
         // Save the inspected key
         $this->key = $key;
 
-        // If a join is referenced but doesn't exist locally, add it to 
+        // If a join is referenced but doesn't exist locally, add it to
         // the model
         if (!isset($this->join) || !isset($lmeta['joins'][$join])) {
             $lmeta->addJoin($join, [

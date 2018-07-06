@@ -77,7 +77,7 @@ abstract class SqlCompiler {
      *
      * Performance:
      * 13.4us per call. Inclues call to ::splitPath() (~4us) and a call to
-     * Trasform::transorm method (~1us). That leaves 8us for getField and
+     * Trasform::transform method (~1us). That leaves 8us for getField and
      * getTransform?
      */
     static function evaluate(Model\ModelBase $record, $field, $check) {
@@ -228,8 +228,8 @@ abstract class SqlCompiler {
      * From the specified model, walk the remaining path to extract the field
      * and a transformation. It is assumed that the path argument does not
      * specify any joins. If joins are needed to be walked, use the
-     * ::explodePath method first to obtain the proper forein model and remove
-     * the joins from the path.
+     * ::explodePath method first to obtain the proper foreign model and
+     * remove the joins from the path.
      *
      * If no transform is specified in the $path, then `exact` is assumed.
      *

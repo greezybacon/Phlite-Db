@@ -162,15 +162,15 @@ implements Db\Transaction,
     function startDistributed() {
         $gtrid = spl_object_hash($this);
         $this->attempt(sprintf("XA BEGIN '%s'", $this->escape($gtrid)),
-            'Cannot start xa transaction')
+            'Cannot start xa transaction');
         return $grtid;
     }
 
     function tryCommit($gtrid) {
         $this->attempt(sprintf("XA END '%s'", $this->escape($gtrid)),
-            'Cannot complete xa transaction')
+            'Cannot complete xa transaction');
         $this->attempt(sprintf("XA PREPARE '%s'", $this->escape($gtrid)),
-            'Cannot commit xa transaction')
+            'Cannot commit xa transaction');
         return true;
     }
 

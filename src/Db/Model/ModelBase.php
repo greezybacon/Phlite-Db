@@ -6,7 +6,7 @@ use Phlite\Db\Manager;
 use Phlite\Db\Signals;
 use Phlite\Util;
 
-abstract class ModelBase {  
+abstract class ModelBase {
     static $metaclass = ModelMeta::class;
     static $manager = ModelManager::class;
     static $meta = array(
@@ -130,7 +130,7 @@ abstract class ModelBase {
     function __isset($field) {
         if (array_key_exists($field, $this->__ht__))
             return true;
-        
+
         $meta = static::getMeta();
         if (isset($meta['joins'][$field])
             || isset($meta->getFields()[$field])
@@ -196,7 +196,7 @@ abstract class ModelBase {
                 // new object_id value, the relationship to object should be
                 // cleared and rebuilt
                 unset($this->__ht__[$related]);
-        }     
+        }
         $this->__ht__[$field] = $value;
     }
     function __set($field, $value) {

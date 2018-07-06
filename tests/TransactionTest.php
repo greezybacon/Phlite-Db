@@ -18,7 +18,7 @@ extends \PHPUnit_Framework_TestCase {
         $P = Northwind\Product::objects()->lookup(['ProductID' => 23]);
         $session->remove($P);
         $session->flush();
-        
+
         try {
             Northwind\Product::objects()->lookup(['ProductID' => 23]);
             // XXX: Fail here
@@ -26,11 +26,11 @@ extends \PHPUnit_Framework_TestCase {
         catch (Exception\DoesNotExist $e) {
             // pass
         }
-        
+
         $this->assertTrue($session->rollback());
         $this->assertNotNull(Northwind\Product::objects()->lookup(['ProductID' => 23]));
     }
-    
+
     // TransactionLog tests -----------------------------------
     function testSessionUpdateRevert() {
         $session = Db\Manager::getSession();
@@ -41,7 +41,7 @@ extends \PHPUnit_Framework_TestCase {
         $this->assertEquals('Sasquatch Ale and stuff', $P->ProductName);
         
         $session->revert();
-        
+
         $this->assertEquals('Sasquatch Ale', $P->ProductName);
     }
 

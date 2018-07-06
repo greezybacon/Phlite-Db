@@ -65,7 +65,7 @@ implements \ArrayAccess {
 
         // Build the meta data as usual
         $this->meta = $this->build($model);
-        
+
         // Break down edge (many-to-many) metadata to joins
         foreach ($this->meta['edges'] as $field => $e) {
             $this->meta['joins'][$field] = $this->getJoinInfoForEdge($e, $field);
@@ -87,7 +87,7 @@ implements \ArrayAccess {
      * Construct the local $meta data. This method is only called once for
      * each model, and it is short-circuited if the ::$use_cache is set and
      * the model has been previously cached.
-     * 
+     *
      * Returns:
      * The meta data which should become the ->meta array. This value will
      * be cached if caching is enabled.
@@ -280,14 +280,14 @@ implements \ArrayAccess {
                 $j['list'] = false;
         }
         $j['constraint'] = $constraint;
-        
+
         return $j;
     }
 
     function addJoin($name, array $join) {
         $this->meta['joins'][$name] = $this->buildJoin($join);
     }
-    
+
     function getJoinInfoForEdge(array $edge, $name) {
         // Simplistic configuration -> specify 'target' and 'through' models
         $join = [
@@ -296,12 +296,12 @@ implements \ArrayAccess {
         if (isset($edge['target']) && isset($edge['through'])) {
             if (!class_exists($edge['target']))
                 throw new Exception\ModelConfigurationError(sprintf(
-                    '%s: Target model for edge `%s` does not exist', 
+                    '%s: Target model for edge `%s` does not exist',
                     $edge['target'], $name));
             if (!class_exists($edge['through']))
                 throw new Exception\ModelConfigurationError(sprintf(
                     '%s: Intermediate model for edge does not exist', $edge['through']));
-            
+
             // For this configuration, the `through` model is inspected for
             // a relationship to reverse
             foreach ($edge['through']::getMeta('joins') as $field=>$info) {
@@ -311,9 +311,9 @@ implements \ArrayAccess {
                     break;
                 }
             }
-            
-            // The join information should have a `through` field which has 
-            // the intermediate model and the relation between it and the 
+
+            // The join information should have a `through` field which has
+            // the intermediate model and the relation between it and the
             // target model.
             foreach ($edge['through']::getMeta('joins') as $field=>$info) {
                 list($class, $pk) = $info['fkey'];
@@ -374,7 +374,7 @@ implements \ArrayAccess {
         $fields = $this->getFields();
         return $fields[$name];
     }
-    
+
     function hasField($name) {
         $fields = $this->getFields();
         return isset($fields[$name]);

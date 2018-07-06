@@ -9,7 +9,7 @@ use Phlite\Util;
  * Class: CachedResultSet
  *
  * Represents a array-like object which will lazily fetch data from an inner
- * iterator. As the results are fetched the results are cached in this 
+ * iterator. As the results are fetched the results are cached in this
  * object. Once the inner iterator is exhausted, the results can be rewound
  * and read again. ArrayAccess and Countable interfaces are also implemented
  * which allow full lazy array-style access to the inner iterator.

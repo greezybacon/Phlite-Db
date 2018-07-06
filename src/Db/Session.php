@@ -62,7 +62,7 @@ class Session {
      *      the TransactionCoordinator class for valid flag settings.
      *
      * Returns:
-     * <TransactionCoordinatory> newly created transaction
+     * <TransactionCoordinator> newly created transaction
      */
     function openTransaction($mode=0) {
         if (isset($this->transaction))
