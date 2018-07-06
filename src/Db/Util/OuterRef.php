@@ -14,7 +14,9 @@ extends Field {
     function toSql($compiler, $model=false, $alias=false) {
         $L = $this->level;
         while ($L--)
-            $compiler = $compiler->getParent();
+            if (!($compiler = $compiler->getParent()))
+                throw new Exception\OrmError(sprintf(
+                    'This QuerySet does not have %d levels', $this->level));
         return parent::toSql($compiler, $model, $alias);
     }
 }

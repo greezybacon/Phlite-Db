@@ -38,6 +38,11 @@ extends Operation {
             throw new Exception\OrmError(
                 'Database table for model fixtures does not exist');
 
+        foreach ($model->getDbFields() as $name=>$value)
+            if (!isset($fields[$name]))
+                throw new Exception\OrmError(sprintf(
+                    'Database table does not have column `%s`', $name));
+
         if (!isset($this->backends[get_class($backend)])) {
             $this->backends[get_class($backend)] = $backend;
             if ($backend instanceof Transaction) {
