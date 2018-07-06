@@ -197,7 +197,7 @@ extends \PHPUnit_Framework_TestCase {
             [9, '1996-07-12 00:00:00.000'],
         ];
 
-        foreach (izip($orders, $answers) as list($O, $A)) {
+        foreach (new Util\ZipIterator($orders, $answers) as list($O, $A)) {
             $this->assertEquals($A[0], $O->EmployeeID);
             $this->assertEquals($A[1], $O->FirstOrder);
         }
