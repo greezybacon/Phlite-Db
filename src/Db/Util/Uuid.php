@@ -42,14 +42,14 @@ class Uuid
 
     static function generate($version=4, $name=false, $ns=self::NS_OID) {
         switch ($version) {
+        case 4:
+            return static::generate4();
         case 1:
             return static::generate1();
         case 3:
             return static::generate3($name, $ns);
         case 5:
             return static::generate5($name, $ns);
-        case 4:
-            return static::generate4();
         }
     }
 
@@ -67,14 +67,14 @@ class Uuid
         $clock_seq_high = ($seq >> 8) & 0x3f;
         # MAC plus date/time
         $mac = dechex(str_replace(':', '', $mac))
-            ?: pack("nN", mt_rand() & 0xffff, mt_rand());
+            ?: pack("nN", random_int(0, 65535), random_int(0, 4e9));
         return new static(pack("NnnCCa*",
             $time_low, $time_mid,
             ($time_high & 0x0FFF) | (0x1 << 12),
             $clock_seq_high | (0x1 << 6), $clock_seq_low,
             $mac));
     }
-    
+
     static function generate3($name, $ns) {
         # Meh. This doesn't address machine endianness...
         if (!$ns instanceof self)
@@ -96,9 +96,7 @@ class Uuid
     }
 
     static function generate4() {
-        $values = [];
-        for ($i=0; $i<8; $i++)
-            $values[$i] = mt_rand() & 0xFFFF;
+        $values = unpack('n8', random_bytes(16));
         $values[3] = $values[3] & 0x0FFF | (0x4 << 12);
         $values[4] = $values[4] & 0x3FFF | (0x1 << 14);
         return new static(pack('n*', ...$values));
@@ -106,7 +104,7 @@ class Uuid
 
     static function nextSeq() {
         if (!isset(static::$sequence))
-            static::$sequence = mt_rand();
+            static::$sequence = random_int(0, 1e8);
         return static::$sequence++;
     }
 
