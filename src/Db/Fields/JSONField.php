@@ -13,7 +13,7 @@ extends TextField {
         'case' => true,
         # Return stdClass objects instead of arrays. This is more natural
         # and is also the default for JSON handling in PHP; however, all
-        # current PHP version return an error if you try
+        # current PHP versions return an error if you try
         # >>> $model->json->key = 'value'
         # It is possible, however, with parentheses:
         # >>> ($model->json)->key = 'value';

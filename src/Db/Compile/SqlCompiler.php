@@ -358,7 +358,7 @@ abstract class SqlCompiler {
      * of the CompiledExpression will allow the compiler to place the
      * constraint properly in the WHERE or HAVING clause appropriately.
      */
-    function compileQ(Model\Q $Q, $model) {
+    function compileQ(Model\Q $Q, $model, $parens=false) {
         $filter = array();
         $type = CompiledExpression::TYPE_WHERE;
         foreach ($Q->constraints as $field=>$value) {
@@ -377,7 +377,7 @@ abstract class SqlCompiler {
                     $f = $field . '__' . $f;
                     $criteria[$f] = $v;
                 }
-                $filter[] = $this->compileQ(new Model\Q($criteria), $model);
+                $filter[] = $this->compileQ(new Model\Q($criteria), $model, $Q->ored);
             }
             // Handle simple field = <value> constraints
             else {
@@ -394,7 +394,7 @@ abstract class SqlCompiler {
         }
         $glue = $Q->isOred() ? ' OR ' : ' AND ';
         $clause = implode($glue, $filter);
-        if (count($filter) > 1)
+        if (($Q->isNegated() || $parens) && count($filter) > 1)
             $clause = '(' . $clause . ')';
         if ($Q->isNegated())
             $clause = 'NOT '.$clause;
@@ -404,7 +404,7 @@ abstract class SqlCompiler {
     function compileConstraints($where, $model) {
         $constraints = array();
         foreach ($where as $Q) {
-            $constraints[] = $this->compileQ($Q, $model);
+            $constraints[] = $this->compileQ($Q, $model, $Q->ored);
         }
         return $constraints;
     }

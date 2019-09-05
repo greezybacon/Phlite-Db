@@ -84,7 +84,7 @@ implements \ArrayAccess, \Countable {
         throw new \Exception(sprintf('%s: is read-only', get_class()));
     }
 
-    function count() {
+    function count($mode=\COUNT_NORMAL) {
         $this->asArray();
         return count($this->storage);
     }
