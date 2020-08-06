@@ -7,9 +7,13 @@ of your model classes to instanciate a QuerySet for your model.
 
 ## Paths and Transforms
 
-Traversing relationships and forming criteria are performed by placing `__` between field names and operators. The `__` is used both as a field separator and an operator separator.
+Traversing relationships and forming criteria are performed by placing `__`
+between field names and operators. The `__` is used both as a field
+separator and an operator separator.
 
 ### Traversing Relationships
+
+
 
 ### Operators and Lookups
 
@@ -22,7 +26,8 @@ be matched in the resulting record set. `exclude` is the opposite of
 `filter`. It specifies constraints which should *not* be matched in the
 resulting record set.
 
-Relationships can be traversed using `__` between field names. The `__` is used both as a field separator and an operator separator.
+Relationships can be traversed using `__` between field names. The `__` is 
+used both as a field separator and an operator separator.
 
 ### Combining and Negated Criteria
 
@@ -37,6 +42,35 @@ criteria together, and to specify boolean operators between criteria. For instan
 
 The `Q` class has methods for `any` (OR), `all` (AND) and `not` which can
 be used to define very complex criteria.
+
+### Transforms
+
+Transforms and Lookups are used to define how the results in your filter are
+compiled into SQL statements. If your filter does not specify any transform,
+then `exact` is assumed and results are compared to your search term exactly.
+
+Many other transforms exist to search for data based on the field type. These
+are a few of the supported Transforms:
+
+Lookup      | Field Type   | Operation
+------------+--------------+-------------------------------
+exact       | Any          | Field exactly matches criteria
+lt          | Any          | Field value is less than criteria
+gt
+lte
+gte
+isnull      | Any          | Value is null or not null, based on criteria
+in          | Any          | Field value is in the list of items or QuerySet
+range       | Any          | Field value is between a list of two values
+contains    | TextField    | Field value contains the criteria
+startswith  | TextField    | Field value starts with the criteria
+endswith    | TextField    | Field value ends with the criteria
+regex       | TextField    | Field value matches regular expression
+hasbit      | IntegerField | Field contains the bit(s) in the criteria
+
+Transform   | Field Type | Operation
+------------+------------+---------------------------------
+year        | DateField  | Extracts the year portion of the date
 
 ## Fetching
 

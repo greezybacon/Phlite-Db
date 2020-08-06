@@ -162,7 +162,7 @@ deferred fields if the QuerySet does not specify any deferred fields.
 
 ## Field Magic Properties
 
-The fields for your model are access magically from the PHP object
+The fields for your model are accessed magically from the PHP object
 instances used to represent them. In other words, they do not need to be
 specified in your model. All properties have public access in your model,
 and you are free to define getter and setter methods to control access to
@@ -181,8 +181,8 @@ your fields as you see fit.
 In the above example, the `name` field is retrieved from the database when
 fetching the User instance via the `lookup` method. The instances fields
 are retrieved magically and map to the column names in the database. The
-fields should *not* be specified in your model class or this magic will not
-work properly.
+fields should *not* be specified in your model class as properties, or this 
+magic will not work properly.
 
 Relationships defined in your `joins` property in your model's meta data
 are also accessible via magic properties. They will be loaded lazily from
