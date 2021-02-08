@@ -20,6 +20,7 @@ use Phlite\Db;
 use Phlite\Db\Migrations;
 use Phlite\Test\Northwind;
 use Phlite\Db\Fields;
+use Phlite\Db\Util;
 
 class JSONFieldTest
 extends \PHPUnit_Framework_TestCase {
@@ -62,6 +63,18 @@ extends \PHPUnit_Framework_TestCase {
             ->filter(['ProductID' => 27])->one();
         $this->assertInternalType('object', $shoggi->data);
         $this->assertEquals('Switzerland', $shoggi->data->CountryOfOrigin);
+    }
+
+    /**
+     * @depends testJSONUpdate
+     */
+    function testJSONAnnotate() {
+        $german = Northwind\ProductWithData::objects()
+            ->annotate(['coa' => new Util\Field('data__CountryOfOrigin')])
+            ->filter(['ProductID' => 26])
+            ->one();
+
+        $this->assertEquals('Germany', $german->coa);
     }
 
     /**

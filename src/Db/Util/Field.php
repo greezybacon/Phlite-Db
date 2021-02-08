@@ -11,8 +11,9 @@ extends Expression {
     }
 
     function toSql($compiler, $model=false, $alias=false) {
-        list($field) = $compiler->getField($this->field, $model);
-        return $field;
+        list($_, $fmodel, $transform) = $compiler->getField($this->field, $model);
+        return $transform->buildLhs($compiler, $fmodel, null)
+            . ($alias ? ' AS ' . $compiler->quote($alias) : '');
     }
 
     function __toString() {

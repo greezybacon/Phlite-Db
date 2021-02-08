@@ -49,7 +49,7 @@ extends Operation {
         $bk = $router($this->modelClass);
         $class = $this->modelClass;
         $table = $class::getMeta('table');
-        $compiler = $bk->getCompiler();
+        $compiler = $bk->getDdlCompiler();
         $statement = $compiler->compileAlter($class, $this->editor->getReverse());
         $bk->execute($statement);
 
