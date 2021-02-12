@@ -404,17 +404,17 @@ implements \ArrayAccess {
      * default constructor free to assume new object status.
      *
      * Three methods were considered, with runtime for 10000 iterations
-     *   * unserialze('O:9:"ModelBase":0:{}') - 0.0671s
+     *   * unserialze('O:9:"ModelBase":0:{}') - 6.92ms
      *   * new ReflectionClass("ModelBase")->newInstanceWithoutConstructor()
-     *      - 0.0478s
-     *   * and a hybrid by cloning the reflection class instance - 0.0335s
+     *      - 2.69ms
+     *   * and a hybrid by caching the ReflectionClass instance and only calling
+     *     the method for a new instance - 0.58ms
      */
     function newInstance($props=false) {
         if (!isset($this->new)) {
-            $rc = new \ReflectionClass($this->model);
-            $this->new = $rc->newInstanceWithoutConstructor();
+            $this->new = new \ReflectionClass($this->model);
         }
-        $instance = clone $this->new;
+        $instance = $this->new->newInstanceWithoutConstructor();
         // Hydrate if props were included
         if (is_array($props)) {
             if ($this->meta['interpret'])

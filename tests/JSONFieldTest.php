@@ -47,6 +47,7 @@ extends \PHPUnit_Framework_TestCase {
     function testJSONUpdate() {
         $gummibears = Northwind\ProductWithData::objects()->lookup(26);
         $gummibears->data = ['CountryOfOrigin' => 'Germany'];
+        $this->assertFalse($gummibears->__new__);
         $this->assertTrue($gummibears->save());
 
         $this->assertEquals(1, Northwind\ProductWithData::objects()
