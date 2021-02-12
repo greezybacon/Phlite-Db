@@ -22,6 +22,7 @@ implements Db\Util\IContextManager {
             'options' => [
                 'create' => 'Create database and load test data',
                 'test' => 'Run the tests/ suite',
+                'interact' => 'Setup database connections and enter CLI interactive mode',
             ],
         ],
     ];
@@ -45,6 +46,10 @@ implements Db\Util\IContextManager {
         global $argv;
         $_SERVER['argv'] = [$argv[0], dirname(__FILE__)];
         \PHPUnit_TextUI_Command::main(false);
+    }
+
+    function do_interact($options) {
+        (new Cli\Interact())->cmdloop();
     }
 
     function setupBackend($options) {
